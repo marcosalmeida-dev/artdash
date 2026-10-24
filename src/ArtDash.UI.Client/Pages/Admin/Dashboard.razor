@@ -1,0 +1,131 @@
+@page "/admin"
+@attribute [Authorize(Roles = AppRoles.Staff)]
+@implements IAsyncDisposable
+@inject DashboardApi DashboardApi
+@inject StoreState Store
+@inject RealtimeClient Realtime
+@inject AuthSession Session
+@inject UiActions Ui
+
+<div class="ad-page">
+    <PageHeader Title="@L["Dashboard.Title"]" Subtitle="@L["Dashboard.Greeting", FirstName]" Icon="@Icons.Material.Rounded.SpaceDashboard">
+        <MudButton Href="/admin/pedidos/quadro" Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Rounded.ViewKanban">
+            @L["Nav.OrderBoard"]
+        </MudButton>
+        <MudButton Href="/admin/pedidos/novo" Variant="Variant.Filled" Color="Color.Primary" DropShadow="false" StartIcon="@Icons.Material.Rounded.Add">
+            @L["Nav.NewOrder"]
+        </MudButton>
+    </PageHeader>
+
+    @if (_data is null)
+    {
+        <LoadingScreen />
+    }
+    else
+    {
+        <div class="ad-stats">
+            <StatCard Label="@L["Dashboard.OrdersToday"]" Value="@_data.OrdersToday.ToString()" Icon="@Icons.Material.Rounded.ReceiptLong" Href="/admin/pedidos" />
+            <StatCard Label="@L["Dashboard.RevenueToday"]" Value="@Fmt.Money(_data.RevenueToday)" Icon="@Icons.Material.Rounded.AttachMoney" Color="Color.Success" />
+            <StatCard Label="@L["Dashboard.Pending"]" Value="@_data.PendingOrders.ToString()" Icon="@Icons.Material.Rounded.HourglassTop" Color="Color.Warning" Href="/admin/pedidos/quadro" />
+            <StatCard Label="@L["Dashboard.Preparing"]" Value="@_data.InPreparation.ToString()" Icon="@Icons.Material.Rounded.Inventory2" Color="Color.Secondary" Href="/admin/pedidos/quadro" />
+            <StatCard Label="@L["Dashboard.Ready"]" Value="@_data.ReadyForDelivery.ToString()" Icon="@Icons.Material.Rounded.Done" Color="Color.Tertiary" Href="/admin/entregas/nova" />
+            <StatCard Label="@L["Dashboard.OutForDelivery"]" Value="@_data.OutForDelivery.ToString()" Icon="@Icons.Material.Rounded.LocalShipping" Color="Color.Info"
+                      Hint="@L["Dashboard.ActiveRuns", _data.ActiveDeliveries]" Href="/admin/rastreamento" />
+            <StatCard Label="@L["Dashboard.ReceivablesOpen"]" Value="@Fmt.Money(_data.ReceivablesOpen)" Icon="@Icons.Material.Rounded.RequestQuote" Color="Color.Primary" Href="/admin/recebiveis" />
+            <StatCard Label="@L["Dashboard.ReceivablesOverdue"]" Value="@Fmt.Money(_data.ReceivablesOverdue)" Icon="@Icons.Material.Rounded.Warning" Color="Color.Error"
+                      Hint="@L["Dashboard.OverdueCount", _data.OverdueCount]" Href="/admin/recebiveis?filtro=Overdue" />
+        </div>
+
+        <div class="ad-grid-2 mt-4">
+            <section class="ad-card">
+                <h2 class="ad-card__title">@L["Dashboard.Last7Days"]</h2>
+                @{
+                    var max = Math.Max(1m, _data.Last7Days.Count == 0 ? 1m : _data.Last7Days.Max(d => d.Revenue));
+                }
+                <div class="ad-bars">
+                    @foreach (var day in _data.Last7Days)
+                    {
+                        var height = (int)Math.Round(day.Revenue / max * 100);
+                        <div class="ad-bars__col" title="@($"{Fmt.Date(day.Date)}: {Fmt.Money(day.Revenue)} · {day.Orders}")">
+                            <span class="ad-bars__value">@(day.Revenue > 0 ? Fmt.Number(day.Revenue, 0) : "")</span>
+                            <span class="ad-bars__track"><span class="ad-bars__bar" style="height:@(Math.Max(2, height))%"></span></span>
+                            <span class="ad-bars__label">@day.Date.ToString("ddd", Fmt.Culture)</span>
+                            <span class="ad-bars__sub">@L["Dashboard.OrdersShort", day.Orders]</span>
+                        </div>
+                    }
+                </div>
+            </section>
+
+            <section class="ad-card ad-card--flush">
+                <h2 class="ad-card__title ad-card__title--pad">@L["Dashboard.RecentOrders"]</h2>
+                @if (_data.RecentOrders.Count == 0)
+                {
+                    <EmptyState Icon="@Icons.Material.Rounded.Inbox" Title="@L["Dashboard.NoOrders"]" Class="ad-empty--compact" />
+                }
+                else
+                {
+                    <div class="ad-rows">
+                        @foreach (var order in _data.RecentOrders)
+                        {
+                            <a class="ad-row" href="@($"/admin/pedidos/{order.Id}")">
+                                <span class="ad-row__main">
+                                    <strong>#@order.Number</strong>
+                                    <span class="ad-muted">@order.CustomerName</span>
+                                </span>
+                                <StatusChip Text="@L.Enum(order.Status)" Color="@StatusStyles.For(order.Status)" />
+                                <span class="ad-row__side">
+                                    <strong>@Fmt.Money(order.Total)</strong>
+                                    <span class="ad-muted ad-small">@Fmt.Time(Store.ToLocal(order.PlacedAt))</span>
+                                </span>
+                            </a>
+                        }
+                    </div>
+                }
+            </section>
+        </div>
+    }
+</div>
+
+@code {
+    private DashboardDto? _data;
+    private CancellationTokenSource? _debounce;
+
+    private string FirstName => Session.Principal.DisplayName().Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+        Realtime.OrderChanged += OnOrderChangedAsync;
+        await Realtime.EnsureStartedAsync();
+    }
+
+    private async Task LoadAsync() => _data = await Ui.LoadAsync(() => DashboardApi.GetAsync()) ?? _data;
+
+    /// <summary>Bursts of events (a run starting moves many orders) become one reload.</summary>
+    private async Task OnOrderChangedAsync(OrderChangedMessage message)
+    {
+        _debounce?.Cancel();
+        _debounce = new CancellationTokenSource();
+        var token = _debounce.Token;
+
+        try
+        {
+            await Task.Delay(600, token);
+            await InvokeAsync(async () =>
+            {
+                await LoadAsync();
+                StateHasChanged();
+            });
+        }
+        catch (TaskCanceledException)
+        {
+        }
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        Realtime.OrderChanged -= OnOrderChangedAsync;
+        _debounce?.Cancel();
+        return ValueTask.CompletedTask;
+    }
+}

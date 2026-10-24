@@ -1,0 +1,16 @@
+# Normalize line endings in the repository; check out with the platform default...
+* text=auto
+
+# ...except shell scripts, which must keep LF to run in Linux containers and WSL,
+# and PowerShell/batch scripts, which Windows expects with CRLF.
+*.sh text eol=lf
+*.ps1 text eol=crlf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+docker/**/*.sql text eol=lf
+
+# Binary assets
+*.png binary
+*.ico binary
+*.jpg binary
+*.webp binary

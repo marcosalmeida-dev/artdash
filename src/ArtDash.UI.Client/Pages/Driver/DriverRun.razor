@@ -1,0 +1,318 @@
+﻿@page "/motorista/entregas/{Id:guid}"
+@attribute [Authorize(Roles = AppRoles.Driver)]
+@implements IAsyncDisposable
+@inject DriverApi Driver
+@inject StoreState Store
+@inject GeolocationService Geo
+@inject IDialogService Dialogs
+@inject UiActions Ui
+
+@*
+    The run on the driver's phone. While it is in progress the phone's GPS is shared (throttled in the
+    browser, screen kept awake), every stop has navigation links, and delivering or failing a stop is
+    one tap plus a short form. Install the app (PWA) for the best experience on the road.
+*@
+<div class="ad-page ad-page--narrow dr-page">
+    @if (_delivery is null)
+    {
+        <PageHeader Title="@L["Driver.Run"]" BackHref="/motorista" />
+        <LoadingScreen />
+    }
+    else
+    {
+        <PageHeader Title="@L["Deliveries.RunNumber", _delivery.Number]" BackHref="/motorista"
+                    Subtitle="@($"{_delivery.VehiclePlate} · {_delivery.VehicleModel}")">
+            <Metadata>
+                <div class="ad-chips">
+                    <StatusChip Text="@L.Enum(_delivery.Status)" Color="@StatusStyles.For(_delivery.Status)" Variant="Variant.Filled" />
+                    <StatusChip Text="@L["Deliveries.StopsProgress", Done, _delivery.Stops.Count]" Icon="@Icons.Material.Rounded.PinDrop" />
+                </div>
+            </Metadata>
+        </PageHeader>
+
+        @if (_delivery.Status == DeliveryStatus.Planned)
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" DropShadow="false" FullWidth="true" Size="Size.Large"
+                       StartIcon="@Icons.Material.Rounded.PlayArrow" Disabled="_busy" OnClick="StartAsync" Class="dr-primary">
+                @L["Driver.Start"]
+            </MudButton>
+        }
+
+        @if (_delivery.Status == DeliveryStatus.InProgress)
+        {
+            <div class="dr-gps @(Geo.IsWatching ? "is-on" : "is-off")">
+                <MudIcon Icon="@(Geo.IsWatching ? Icons.Material.Rounded.GpsFixed : Icons.Material.Rounded.GpsOff)" />
+                <span class="dr-gps__text">
+                    <strong>@(Geo.IsWatching ? L["Driver.GpsOn"] : L["Driver.GpsOff"])</strong>
+                    <span class="ad-small">@GpsDetail</span>
+                </span>
+                @if (Geo.IsWatching)
+                {
+                    <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="StopGpsAsync">@L["Driver.GpsPause"]</MudButton>
+                }
+                else
+                {
+                    <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" DropShadow="false" OnClick="StartGpsAsync">@L["Driver.GpsResume"]</MudButton>
+                }
+            </div>
+
+            <section class="ad-card ad-card--flush">
+                <LeafletMap @ref="_map" Markers="_markers" Height="260px" />
+            </section>
+        }
+
+        <div class="dr-stops">
+            @foreach (var stop in _delivery.Stops.OrderBy(s => s.Sequence))
+            {
+                var pending = stop.Status == DeliveryStopStatus.Pending;
+                <article class="dr-stop dr-stop--@stop.Status.ToString().ToLowerInvariant() @(stop.Id == NextStopId ? "is-next" : null)">
+                    <header class="dr-stop__head">
+                        <span class="ad-seq ad-seq--@stop.Status.ToString().ToLowerInvariant()">@stop.Sequence</span>
+                        <span class="dr-stop__title">
+                            <strong>@stop.CustomerName</strong>
+                            <span class="ad-muted ad-small">#@stop.OrderNumber</span>
+                        </span>
+                        <StatusChip Text="@L.Enum(stop.Status)" Color="@StatusStyles.For(stop.Status)" />
+                    </header>
+
+                    <p class="dr-stop__address">@stop.Address.ToSingleLine()</p>
+
+                    @if (stop.AmountToCollect > 0 && pending)
+                    {
+                        <div class="dr-stop__collect">
+                            <MudIcon Icon="@Icons.Material.Rounded.Payments" Size="Size.Small" />
+                            @L["Driver.Collect", Fmt.Money(stop.AmountToCollect)]
+                            @if (stop.PaymentMethod is { } method)
+                            {
+                                <span>(@L.Enum(method))</span>
+                            }
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(stop.OrderNotes))
+                    {
+                        <div class="dr-stop__notes"><MudIcon Icon="@Icons.Material.Rounded.EditNote" Size="Size.Small" /> @stop.OrderNotes</div>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(stop.FailureReason))
+                    {
+                        <div class="ad-small ad-text-error">@stop.FailureReason</div>
+                    }
+
+                    <div class="dr-stop__links">
+                        <MudButton Href="@Fmt.DirectionsLink(stop.Address)" Target="_blank" Size="Size.Small" Variant="Variant.Outlined"
+                                   StartIcon="@Icons.Material.Rounded.Directions">@L["Driver.Maps"]</MudButton>
+                        <MudButton Href="@Fmt.WazeLink(stop.Address)" Target="_blank" Size="Size.Small" Variant="Variant.Outlined"
+                                   StartIcon="@Icons.Material.Rounded.Navigation">Waze</MudButton>
+                        @if (!string.IsNullOrWhiteSpace(stop.CustomerPhone))
+                        {
+                            <MudButton Href="@Fmt.TelLink(stop.CustomerPhone)" Size="Size.Small" Variant="Variant.Outlined"
+                                       StartIcon="@Icons.Material.Rounded.Call">@L["Driver.Call"]</MudButton>
+                        }
+                    </div>
+
+                    @if (pending && _delivery.Status == DeliveryStatus.InProgress)
+                    {
+                        <div class="dr-stop__actions">
+                            <MudButton Variant="Variant.Filled" Color="Color.Success" DropShadow="false" StartIcon="@Icons.Material.Rounded.TaskAlt"
+                                       Disabled="_busy" OnClick="@(() => CompleteAsync(stop))">@L["Driver.Delivered"]</MudButton>
+                            <MudButton Variant="Variant.Text" Color="Color.Error" StartIcon="@Icons.Material.Rounded.Block"
+                                       Disabled="_busy" OnClick="@(() => FailAsync(stop))">@L["Driver.NotDelivered"]</MudButton>
+                        </div>
+                    }
+                </article>
+            }
+        </div>
+
+        @if (_delivery.Status == DeliveryStatus.InProgress && Pending == 0)
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" DropShadow="false" FullWidth="true" Size="Size.Large"
+                       StartIcon="@Icons.Material.Rounded.Flag" Disabled="_busy" OnClick="FinishAsync" Class="dr-primary">
+                @L["Driver.Finish"]
+            </MudButton>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private DeliveryDto? _delivery;
+    private LeafletMap? _map;
+    private IReadOnlyList<MapMarker> _markers = [];
+    private bool _busy;
+    private DateTime? _lastSentUtc;
+    private int _failedSends;
+
+    private int Done => _delivery?.Stops.Count(s => s.Status != DeliveryStopStatus.Pending) ?? 0;
+
+    private int Pending => _delivery?.Stops.Count(s => s.Status == DeliveryStopStatus.Pending) ?? 0;
+
+    private Guid? NextStopId => _delivery?.Stops.Where(s => s.Status == DeliveryStopStatus.Pending).OrderBy(s => s.Sequence).FirstOrDefault()?.Id;
+
+    private string GpsDetail => Geo.LastErrorCode switch
+    {
+        1 => L["Driver.GpsDenied"],
+        0 => L["Driver.GpsUnsupported"],
+        not null => L["Driver.GpsUnavailable"],
+        _ when _failedSends > 2 => L["Driver.GpsSendFailing"],
+        _ when _lastSentUtc is { } sent => L["Driver.GpsLastSent", Fmt.Time(Store.ToLocal(sent))],
+        _ => L["Driver.GpsWaiting"]
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        Geo.PositionChanged += OnPositionAsync;
+        Geo.StateChanged += OnGeoStateChanged;
+
+        await LoadAsync();
+        if (_delivery?.Status == DeliveryStatus.InProgress)
+        {
+            await StartGpsAsync();
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        _delivery = await Ui.LoadAsync(() => Driver.GetAsync(Id)) ?? _delivery;
+        BuildMarkers();
+    }
+
+    private void BuildMarkers()
+    {
+        if (_delivery is null)
+        {
+            return;
+        }
+
+        var markers = _delivery.Stops
+            .Where(s => s.Address.HasCoordinates)
+            .Select(s => new MapMarker(s.Id.ToString(), s.Address.Latitude!.Value, s.Address.Longitude!.Value,
+                s.Status switch
+                {
+                    DeliveryStopStatus.Delivered => MapMarkerKinds.StopDone,
+                    DeliveryStopStatus.Failed => MapMarkerKinds.StopFailed,
+                    _ => MapMarkerKinds.Stop
+                },
+                s.Sequence.ToString(), s.CustomerName))
+            .ToList();
+
+        if (Geo.LastFix is { } fix)
+        {
+            markers.Add(new MapMarker("me", fix.Latitude, fix.Longitude, MapMarkerKinds.Me));
+        }
+
+        _markers = markers;
+    }
+
+    private async Task StartAsync()
+    {
+        _busy = true;
+        if (await Ui.RunAsync(() => Driver.StartAsync(Id), L["Driver.Started"]))
+        {
+            await LoadAsync();
+            await StartGpsAsync();
+        }
+
+        _busy = false;
+    }
+
+    private async Task StartGpsAsync()
+    {
+        if (!await Geo.StartAsync(minIntervalSeconds: 10, minDistanceMeters: 30))
+        {
+            Ui.Warning(L["Driver.GpsUnsupported"]);
+        }
+    }
+
+    private Task StopGpsAsync() => Geo.StopAsync();
+
+    /// <summary>Each throttled GPS fix goes to the API (and from there to the live maps and tracking pages).</summary>
+    private async Task OnPositionAsync(GeoFix fix)
+    {
+        if (_delivery?.Status != DeliveryStatus.InProgress)
+        {
+            return;
+        }
+
+        try
+        {
+            await Driver.RecordPositionAsync(Id, new RecordPositionRequest
+            {
+                Latitude = fix.Latitude,
+                Longitude = fix.Longitude,
+                AccuracyMeters = fix.AccuracyMeters,
+                SpeedKmh = fix.SpeedKmh,
+                Heading = fix.Heading,
+                RecordedAt = fix.RecordedAtUtc
+            });
+
+            _lastSentUtc = DateTime.UtcNow;
+            _failedSends = 0;
+        }
+        catch (ApiException)
+        {
+            _failedSends++;
+        }
+
+        if (_map is not null)
+        {
+            await InvokeAsync(() => _map.UpsertMarkerAsync(new MapMarker("me", fix.Latitude, fix.Longitude, MapMarkerKinds.Me)));
+        }
+    }
+
+    private void OnGeoStateChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private async Task CompleteAsync(DeliveryStopDto stop)
+    {
+        var parameters = new DialogParameters<CompleteStopDialog>
+        {
+            { x => x.Stop, stop },
+            { x => x.DeliveryId, Id }
+        };
+
+        var dialog = await Dialogs.ShowAsync<CompleteStopDialog>(L["Driver.DeliveredTitle", stop.Sequence], parameters, DialogServiceExtensions.Form(MaxWidth.Small));
+        if (await dialog.Result is { Canceled: false })
+        {
+            await LoadAsync();
+        }
+    }
+
+    private async Task FailAsync(DeliveryStopDto stop)
+    {
+        var reason = await Dialogs.PromptAsync(L["Driver.NotDelivered"], L["Driver.FailReason"], L["Driver.FailConfirm"], L["Common.Back"],
+            color: Color.Error, helperText: L["Driver.FailHint"]);
+
+        if (reason is null)
+        {
+            return;
+        }
+
+        _busy = true;
+        if (await Ui.RunAsync(() => Driver.FailStopAsync(Id, stop.Id, reason), L["Driver.FailRecorded"]))
+        {
+            await LoadAsync();
+        }
+
+        _busy = false;
+    }
+
+    private async Task FinishAsync()
+    {
+        _busy = true;
+        if (await Ui.RunAsync(() => Driver.FinishAsync(Id), L["Driver.Finished"]))
+        {
+            await Geo.StopAsync();
+            await LoadAsync();
+        }
+
+        _busy = false;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Geo.PositionChanged -= OnPositionAsync;
+        Geo.StateChanged -= OnGeoStateChanged;
+        await Geo.StopAsync();
+    }
+}

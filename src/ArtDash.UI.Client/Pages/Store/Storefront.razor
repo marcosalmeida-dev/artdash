@@ -1,0 +1,294 @@
+@page "/"
+@implements IDisposable
+@inject StoreApi StoreApi
+@inject StoreState Store
+@inject CartService Cart
+@inject BrandingState Brand
+@inject AuthSession Session
+@inject NavigationManager Navigation
+@inject UiActions Ui
+
+<PageTitle>@Brand.Current.DisplayName</PageTitle>
+
+@* Full-bleed storefront (MainLayout drops the gutter on "/"): hero with the brand, search, category
+   chips and the catalog. Same visual language as artstore-fs' StoreOrder. *@
+<section class="sf-hero">
+    <div class="sf-hero__inner">
+        <div class="sf-hero__brand">
+            @if (!string.IsNullOrWhiteSpace(Brand.Current.LogoDarkUrl ?? Brand.Current.LogoUrl))
+            {
+                <img class="sf-hero__logo" src="@(Brand.Current.LogoDarkUrl ?? Brand.Current.LogoUrl)" alt="@Brand.Current.DisplayName" />
+            }
+            else
+            {
+                <h1 class="sf-hero__name">@Brand.Current.DisplayName</h1>
+            }
+            @if (!string.IsNullOrWhiteSpace(Brand.Current.Tagline))
+            {
+                <p class="sf-hero__tagline">@Brand.Current.Tagline</p>
+            }
+        </div>
+
+        <div class="sf-hero__facts">
+            @if (!string.IsNullOrWhiteSpace(Store.Info.OpeningHours))
+            {
+                <span class="sf-fact"><MudIcon Icon="@Icons.Material.Rounded.Schedule" Size="Size.Small" />@Store.Info.OpeningHours</span>
+            }
+            <span class="sf-fact">
+                <MudIcon Icon="@Icons.Material.Rounded.DeliveryDining" Size="Size.Small" />
+                @(Store.Info.DeliveryFee > 0 ? L["Store.DeliveryFee", Fmt.Money(Store.Info.DeliveryFee)] : L["Store.FreeDelivery"])
+            </span>
+            @if (Store.Info.FreeDeliveryThreshold is > 0 && Store.Info.DeliveryFee > 0)
+            {
+                <span class="sf-fact"><MudIcon Icon="@Icons.Material.Rounded.LocalOffer" Size="Size.Small" />@L["Store.FreeAbove", Fmt.Money(Store.Info.FreeDeliveryThreshold.Value)]</span>
+            }
+            @if (Store.Info.MinimumOrderAmount is > 0)
+            {
+                <span class="sf-fact"><MudIcon Icon="@Icons.Material.Rounded.ShoppingBasket" Size="Size.Small" />@L["Store.MinimumOrder", Fmt.Money(Store.Info.MinimumOrderAmount.Value)]</span>
+            }
+        </div>
+    </div>
+</section>
+
+<div class="sf-toolbar">
+    <div class="sf-toolbar__inner">
+        <MudTextField T="string" @bind-Value="_search" Placeholder="@L["Store.SearchPlaceholder"]" Variant="Variant.Outlined"
+                      Margin="Margin.Dense" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Rounded.Search"
+                      Immediate="true" DebounceInterval="200" Clearable="true" Class="sf-search" />
+        @if (_catalog is { Categories.Count: > 1 })
+        {
+            <div class="sf-chips" role="tablist">
+                <button type="button" class="sf-chip @(_category is null ? "is-active" : null)" @onclick="@(() => _category = null)">@L["Store.AllCategories"]</button>
+                @foreach (var category in _catalog.Categories)
+                {
+                    <button type="button" class="sf-chip @(_category == category.Id ? "is-active" : null)" @onclick="@(() => _category = category.Id)">@category.Name</button>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+<div class="@BodyClass">
+    @if (_catalog is null)
+    {
+        <LoadingScreen Text="@L["Store.Loading"]" />
+    }
+    else if (!VisibleCategories.Any())
+    {
+        <EmptyState Icon="@Icons.Material.Rounded.SearchOff" Title="@L["Store.NothingFound"]" Text="@L["Store.NothingFoundHint"]" />
+    }
+    else
+    {
+        @foreach (var (category, products) in VisibleCategories)
+        {
+            <section class="sf-section" aria-labelledby="cat-@category.Id">
+                <h2 class="sf-section__title" id="cat-@category.Id">@category.Name</h2>
+                <div class="sf-grid">
+                    @foreach (var product in products)
+                    {
+                        var quantity = Cart.QuantityOf(product.Id);
+                        <article class="sf-card @(quantity > 0 ? "sf-card--in-cart" : null)">
+                            <div class="sf-card__media">
+                                @if (!string.IsNullOrWhiteSpace(product.ImageUrl))
+                                {
+                                    <img src="@product.ImageUrl" alt="@product.Name" loading="lazy" />
+                                }
+                                else
+                                {
+                                    <MudIcon Icon="@Icons.Material.Rounded.Inventory2" />
+                                }
+                                @if (product.IsFeatured)
+                                {
+                                    <span class="sf-card__badge">@L["Store.Featured"]</span>
+                                }
+                            </div>
+                            <div class="sf-card__body">
+                                <h3 class="sf-card__name">@product.Name</h3>
+                                @if (!string.IsNullOrWhiteSpace(product.Description))
+                                {
+                                    <p class="sf-card__desc">@product.Description</p>
+                                }
+                                <div class="sf-card__footer">
+                                    <div class="sf-card__price">
+                                        @if (product.CompareAtPrice is > 0 && product.CompareAtPrice > product.Price)
+                                        {
+                                            <s>@Fmt.Money(product.CompareAtPrice)</s>
+                                        }
+                                        <strong>@Fmt.Money(product.Price)</strong>
+                                        <span class="sf-card__unit">/ @L.Enum(product.Unit)</span>
+                                    </div>
+                                    @if (quantity <= 0)
+                                    {
+                                        <MudIconButton Icon="@Icons.Material.Rounded.AddShoppingCart" Variant="Variant.Filled" Color="Color.Primary"
+                                                       Size="Size.Small" Class="sf-add" aria-label="@L["Store.Add", product.Name]"
+                                                       OnClick="@(() => Cart.AddAsync(product))" />
+                                    }
+                                    else
+                                    {
+                                        <div class="sf-stepper">
+                                            <button type="button" aria-label="@L["Store.Less"]" @onclick="@(() => Cart.IncrementAsync(product.Id, -1))">−</button>
+                                            <span>@Fmt.Quantity(quantity)</span>
+                                            <button type="button" aria-label="@L["Store.More"]" @onclick="@(() => Cart.IncrementAsync(product.Id, 1))">+</button>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </article>
+                    }
+                </div>
+            </section>
+        }
+    }
+</div>
+
+@if (HasContact)
+{
+    <footer class="sf-contact" aria-labelledby="sf-contact-title">
+        <div class="sf-contact__inner">
+            <div class="sf-contact__brand">
+                @if (!string.IsNullOrWhiteSpace(Brand.Current.LogoUrl))
+                {
+                    <img class="sf-contact__logo" src="@Brand.Current.LogoUrl" alt="@Brand.Current.DisplayName" loading="lazy" />
+                }
+                <h2 class="sf-contact__title" id="sf-contact-title">@L["Store.Contact.Title"]</h2>
+            </div>
+            <div class="sf-contact__items">
+                @if (!string.IsNullOrWhiteSpace(Store.Info.WhatsApp))
+                {
+                    <a class="sf-contact__item sf-contact__item--primary" href="@WhatsAppUrl" target="_blank" rel="noopener">
+                        <MudIcon Icon="@Icons.Custom.Brands.WhatsApp" Size="Size.Small" />
+                        <span>@L["Store.Contact.WhatsApp", Fmt.Phone(Store.Info.WhatsApp)]</span>
+                    </a>
+                }
+                @if (!string.IsNullOrWhiteSpace(Store.Info.Phone))
+                {
+                    <a class="sf-contact__item" href="@PhoneUrl">
+                        <MudIcon Icon="@Icons.Material.Rounded.Call" Size="Size.Small" />
+                        <span>@Fmt.Phone(Store.Info.Phone)</span>
+                    </a>
+                }
+                @if (!string.IsNullOrWhiteSpace(Store.Info.Email))
+                {
+                    <a class="sf-contact__item" href="@EmailUrl">
+                        <MudIcon Icon="@Icons.Material.Rounded.Email" Size="Size.Small" />
+                        <span>@Store.Info.Email</span>
+                    </a>
+                }
+                @if (AddressLine is not null)
+                {
+                    <a class="sf-contact__item" href="@MapsUrl" target="_blank" rel="noopener" title="@L["Store.Contact.Directions"]">
+                        <MudIcon Icon="@Icons.Material.Rounded.Place" Size="Size.Small" />
+                        <span>@AddressLine</span>
+                    </a>
+                }
+            </div>
+        </div>
+    </footer>
+}
+
+@if (!Cart.IsEmpty)
+{
+    <a class="sf-cartbar" href="/carrinho">
+        <MudIcon Icon="@Icons.Material.Rounded.ShoppingCart" />
+        <span class="sf-cartbar__text">@L["Store.CartBar", Fmt.Quantity(Cart.ItemCount)]</span>
+        <strong>@Fmt.Money(Cart.Subtotal)</strong>
+        <MudIcon Icon="@Icons.Material.Rounded.ChevronRight" />
+    </a>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "preview")] public string? Preview { get; set; }
+
+    private StorefrontCatalogDto? _catalog;
+    private string? _search;
+    private Guid? _category;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Cart.Changed += OnCartChanged;
+
+        // Staff and drivers have a better place to start; staff can still preview the store (?preview=1).
+        var user = Session.Principal;
+        if (Preview is null && (user.IsStaff() || user.IsDriver()))
+        {
+            Navigation.NavigateTo(LandingRoutes.For(user), replace: true);
+            return;
+        }
+
+        _catalog = await Ui.LoadAsync(() => StoreApi.GetCatalogAsync()) ?? new StorefrontCatalogDto([]);
+        await Cart.ReconcileAsync(_catalog);
+    }
+
+    private IEnumerable<(StorefrontCategoryDto Category, List<StorefrontProductDto> Products)> VisibleCategories
+    {
+        get
+        {
+            if (_catalog is null)
+            {
+                yield break;
+            }
+
+            var term = _search?.Trim();
+            foreach (var category in _catalog.Categories.Where(c => _category is null || c.Id == _category))
+            {
+                var products = category.Products
+                    .Where(p => string.IsNullOrEmpty(term) ||
+                                p.Name.Contains(term, StringComparison.CurrentCultureIgnoreCase) ||
+                                (p.Description?.Contains(term, StringComparison.CurrentCultureIgnoreCase) ?? false))
+                    .ToList();
+
+                if (products.Count > 0)
+                {
+                    yield return (category, products);
+                }
+            }
+        }
+    }
+
+    private string BodyClass => HasContact ? "sf-body sf-body--with-footer" : "sf-body";
+
+    private bool HasContact =>
+        !string.IsNullOrWhiteSpace(Store.Info.WhatsApp) || !string.IsNullOrWhiteSpace(Store.Info.Phone) ||
+        !string.IsNullOrWhiteSpace(Store.Info.Email) || AddressLine is not null;
+
+    private string WhatsAppUrl => "https://wa.me/" + WithCountryCode(Fmt.Digits(Store.Info.WhatsApp));
+
+    private string PhoneUrl => "tel:+" + WithCountryCode(Fmt.Digits(Store.Info.Phone));
+
+    private string EmailUrl => "mailto:" + Store.Info.Email;
+
+    private string? AddressLine
+    {
+        get
+        {
+            var address = Store.Info.Address;
+            if (address is null || string.IsNullOrWhiteSpace(address.Street) || string.IsNullOrWhiteSpace(address.City))
+            {
+                return null;
+            }
+
+            var street = string.IsNullOrWhiteSpace(address.Number) ? address.Street : $"{address.Street}, {address.Number}";
+            var district = string.IsNullOrWhiteSpace(address.District) ? null : $" – {address.District}";
+            return $"{street}{district}, {address.City}/{address.State}";
+        }
+    }
+
+    private string MapsUrl
+    {
+        get
+        {
+            var address = Store.Info.Address;
+            var query = address is { HasCoordinates: true }
+                ? string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{address.Latitude},{address.Longitude}")
+                : AddressLine ?? string.Empty;
+            return "https://www.google.com/maps/search/?api=1&query=" + Uri.EscapeDataString(query);
+        }
+    }
+
+    /// <summary>Brazilian numbers are stored without the country code (DDD + number).</summary>
+    private static string WithCountryCode(string digits) => digits.Length is 10 or 11 ? "55" + digits : digits;
+
+    private void OnCartChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Cart.Changed -= OnCartChanged;
+}

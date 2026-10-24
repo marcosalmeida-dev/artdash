@@ -1,0 +1,29 @@
+@* The order's journey as steps (storefront and tracking). A cancelled order shows an alert instead. *@
+@if (Status == OrderStatus.Cancelled)
+{
+    <MudAlert Severity="Severity.Error" Variant="Variant.Outlined" Dense="true" Icon="@Icons.Material.Rounded.Cancel">
+        @L["Orders.CancelledNotice"]
+    </MudAlert>
+}
+else
+{
+    <ol class="ad-steps" aria-label="@L["Orders.Progress"]">
+        @for (var i = 0; i < StatusStyles.Flow.Count; i++)
+        {
+            var step = StatusStyles.Flow[i];
+            var state = i < CurrentIndex ? "done" : i == CurrentIndex ? "current" : "todo";
+            <li class="ad-steps__item ad-steps__item--@state" aria-current="@(state == "current" ? "step" : null)">
+                <span class="ad-steps__dot">
+                    <MudIcon Icon="@(state == "done" ? Icons.Material.Rounded.Check : StatusStyles.Icon(step))" Size="Size.Small" />
+                </span>
+                <span class="ad-steps__label">@L.Enum(step)</span>
+            </li>
+        }
+    </ol>
+}
+
+@code {
+    [Parameter, EditorRequired] public OrderStatus Status { get; set; }
+
+    private int CurrentIndex => Math.Max(0, StatusStyles.Flow.ToList().IndexOf(Status));
+}

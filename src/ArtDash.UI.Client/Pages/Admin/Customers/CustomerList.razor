@@ -1,0 +1,163 @@
+@page "/admin/clientes"
+@attribute [Authorize(Roles = AppRoles.Staff)]
+@inject CustomersApi Customers
+@inject IDialogService Dialogs
+@inject UiActions Ui
+
+<div class="ad-page">
+    <PageHeader Title="@L["Customers.Title"]" Subtitle="@L["Customers.Subtitle"]" Icon="@Icons.Material.Rounded.Groups">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" DropShadow="false" StartIcon="@Icons.Material.Rounded.PersonAdd"
+                   OnClick="@(() => EditAsync(null))">@L["Customers.New"]</MudButton>
+    </PageHeader>
+
+    <section class="ad-card ad-filters">
+        <MudGrid Spacing="2">
+            <MudItem xs="12" md="8">
+                <MudTextField T="string" @bind-Value="_filter.Search" @bind-Value:after="SearchAsync" Label="@L["Customers.Search"]"
+                              Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Rounded.Search" Immediate="true" DebounceInterval="350" Clearable="true" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudSelect T="bool?" Value="_filter.IsActive" ValueChanged="@(v => SetAsync(() => _filter.IsActive = v))"
+                           Label="@L["Common.Status"]" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true"
+                           ToStringFunc="ActiveLabel">
+                    <MudSelectItem T="bool?" Value="@((bool?)true)">@L["Common.Active"]</MudSelectItem>
+                    <MudSelectItem T="bool?" Value="@((bool?)false)">@L["Common.Inactive"]</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+        </MudGrid>
+    </section>
+
+    <section class="ad-card ad-card--flush">
+        <MudDataGrid T="CustomerListItemDto" Items="@(_page?.Items ?? [])" Loading="_loading" Hover="true" Dense="true" Elevation="0" Class="ad-grid">
+            <Columns>
+                <TemplateColumn Title="@L["Customers.Customer"]" Sortable="false">
+                    <CellTemplate>
+                        <div class="ad-cell-media">
+                            <span class="ad-thumb ad-thumb--round">
+                                <MudIcon Icon="@(context.Item.Type == CustomerType.Company ? Icons.Material.Rounded.Business : Icons.Material.Rounded.Person)" Size="Size.Small" />
+                            </span>
+                            <span class="ad-cell-media__text">
+                                <span class="ad-cell-main">@context.Item.Name</span>
+                                <span class="ad-cell-sub">@(string.IsNullOrWhiteSpace(context.Item.Document) ? L.Enum(context.Item.Type) : Fmt.Document(context.Item.Document))</span>
+                            </span>
+                        </div>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="@L["Customers.Contact"]" Sortable="false">
+                    <CellTemplate>
+                        @if (!string.IsNullOrWhiteSpace(context.Item.Phone))
+                        {
+                            <span class="ad-cell-main">@Fmt.Phone(context.Item.Phone)</span>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(context.Item.Email))
+                        {
+                            <span class="ad-cell-sub">@context.Item.Email</span>
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+                <PropertyColumn Property="x => x.City" Title="@L["Address.City"]" Sortable="false" />
+                <TemplateColumn Title="@L["Common.Status"]" Sortable="false">
+                    <CellTemplate>
+                        <div class="ad-chips">
+                            @if (!context.Item.IsActive)
+                            {
+                                <StatusChip Text="@L["Common.Inactive"]" />
+                            }
+                            @if (context.Item.AllowInvoicing)
+                            {
+                                <StatusChip Text="@L["Customers.Invoicing"]" Color="Color.Info" Icon="@Icons.Material.Rounded.RequestQuote" />
+                            }
+                            @if (context.Item.HasLogin)
+                            {
+                                <StatusChip Text="@L["Customers.HasLogin"]" Color="Color.Success" Icon="@Icons.Material.Rounded.Key" />
+                            }
+                        </div>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Sortable="false" HeaderClass="text-right" CellClass="text-right ad-cell-actions">
+                    <CellTemplate>
+                        <MudIconButton Icon="@Icons.Material.Rounded.AddShoppingCart" Size="Size.Small" aria-label="@L["Customers.NewOrder"]"
+                                       Href="@($"/admin/pedidos/novo?cliente={context.Item.Id}")" Disabled="@(!context.Item.IsActive)" />
+                        <MudIconButton Icon="@Icons.Material.Rounded.Edit" Size="Size.Small" aria-label="@L["Common.Edit"]"
+                                       OnClick="@(() => EditAsync(context.Item.Id))" />
+                        <MudIconButton Icon="@Icons.Material.Rounded.Delete" Size="Size.Small" Color="Color.Error" aria-label="@L["Common.Delete"]"
+                                       OnClick="@(() => DeleteAsync(context.Item))" />
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+            <NoRecordsContent>
+                <EmptyState Icon="@Icons.Material.Rounded.Groups" Title="@L["Customers.None"]" Class="ad-empty--compact" />
+            </NoRecordsContent>
+        </MudDataGrid>
+        @if (_page is { TotalPages: > 1 })
+        {
+            <div class="ad-pager">
+                <MudPagination Count="_page.TotalPages" Selected="_filter.Page"
+                               SelectedChanged="@(p => SetAsync(() => _filter.Page = p, resetPage: false))" Color="Color.Primary" />
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    private readonly CustomerQuery _filter = new() { PageSize = 25 };
+    private PagedResult<CustomerListItemDto>? _page;
+    private bool _loading;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private string ActiveLabel(bool? active) => active switch
+    {
+        true => L["Common.Active"],
+        false => L["Common.Inactive"],
+        _ => string.Empty
+    };
+
+    private Task SearchAsync()
+    {
+        _filter.Page = 1;
+        return LoadAsync();
+    }
+
+    private Task SetAsync(Action change, bool resetPage = true)
+    {
+        change();
+        if (resetPage)
+        {
+            _filter.Page = 1;
+        }
+
+        return LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _page = await Ui.LoadAsync(() => Customers.SearchAsync(_filter)) ?? PagedResult<CustomerListItemDto>.Empty();
+        _loading = false;
+    }
+
+    private async Task EditAsync(Guid? customerId)
+    {
+        var parameters = new DialogParameters<CustomerDialog> { { x => x.CustomerId, customerId } };
+        var title = customerId is null ? L["Customers.New"] : L["Customers.Edit"];
+        var dialog = await Dialogs.ShowAsync<CustomerDialog>(title, parameters, DialogServiceExtensions.Form(MaxWidth.Medium));
+        if (await dialog.Result is { Canceled: false })
+        {
+            await LoadAsync();
+        }
+    }
+
+    private async Task DeleteAsync(CustomerListItemDto customer)
+    {
+        var confirmed = await Dialogs.ConfirmAsync(
+            L["Customers.DeleteTitle"], L["Customers.DeleteConfirm", customer.Name], L["Common.Delete"], L["Common.Cancel"],
+            Color.Error, Icons.Material.Rounded.PersonRemove);
+
+        if (confirmed && await Ui.RunAsync(() => Customers.DeleteAsync(customer.Id), L["Customers.Deleted"]))
+        {
+            await LoadAsync();
+        }
+    }
+}

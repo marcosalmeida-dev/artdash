@@ -1,0 +1,15 @@
+<Project>
+  <!-- Shared build settings for every project in the solution. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <Authors>Vanadium Software Dev</Authors>
+    <Company>Vanadium Software Dev</Company>
+    <Product>ArtDash</Product>
+    <NeutralLanguage>pt-BR</NeutralLanguage>
+    <SatelliteResourceLanguages>pt-BR;en</SatelliteResourceLanguages>
+  </PropertyGroup>
+</Project>

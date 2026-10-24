@@ -1,0 +1,118 @@
+@page "/carrinho"
+@implements IDisposable
+@inject CartService Cart
+@inject StoreState Store
+@inject StoreApi StoreApi
+@inject AuthSession Session
+@inject NavigationManager Navigation
+
+<div class="ad-page ad-page--narrow">
+    <PageHeader Title="@L["Cart.Title"]" Icon="@Icons.Material.Rounded.ShoppingCart" BackHref="/" />
+
+    @if (Cart.IsEmpty)
+    {
+        <EmptyState Icon="@Icons.Material.Rounded.RemoveShoppingCart" Title="@L["Cart.Empty"]" Text="@L["Cart.EmptyHint"]">
+            <MudButton Href="/" Variant="Variant.Filled" Color="Color.Primary" DropShadow="false">@L["Cart.BrowseProducts"]</MudButton>
+        </EmptyState>
+    }
+    else
+    {
+        <div class="ad-split">
+            <div class="ad-card ad-card--flush">
+                @foreach (var line in Cart.Lines)
+                {
+                    <div class="ad-line">
+                        <div class="ad-line__media">
+                            @if (!string.IsNullOrWhiteSpace(line.ImageUrl))
+                            {
+                                <img src="@line.ImageUrl" alt="" />
+                            }
+                            else
+                            {
+                                <MudIcon Icon="@Icons.Material.Rounded.Inventory2" />
+                            }
+                        </div>
+                        <div class="ad-line__body">
+                            <span class="ad-line__name">@line.Name</span>
+                            <span class="ad-line__meta">@Fmt.Money(line.UnitPrice) / @L.Enum(line.Unit)</span>
+                        </div>
+                        <div class="ad-line__qty">
+                            <MudIconButton Icon="@Icons.Material.Rounded.Remove" Size="Size.Small" aria-label="@L["Store.Less"]"
+                                           OnClick="@(() => Cart.IncrementAsync(line.ProductId, -1))" />
+                            <span>@Fmt.Quantity(line.Quantity)</span>
+                            <MudIconButton Icon="@Icons.Material.Rounded.Add" Size="Size.Small" aria-label="@L["Store.More"]"
+                                           OnClick="@(() => Cart.IncrementAsync(line.ProductId, 1))" />
+                        </div>
+                        <div class="ad-line__total">
+                            <strong>@Fmt.Money(line.Total)</strong>
+                            <MudIconButton Icon="@Icons.Material.Rounded.DeleteOutline" Size="Size.Small" Color="Color.Error"
+                                           aria-label="@L["Common.Remove"]" OnClick="@(() => Cart.RemoveAsync(line.ProductId))" />
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <aside class="ad-card ad-summary">
+                <h2 class="ad-card__title">@L["Cart.Summary"]</h2>
+                <dl class="ad-totals">
+                    <div><dt>@L["Orders.Subtotal"]</dt><dd>@Fmt.Money(Cart.Subtotal)</dd></div>
+                    <div><dt>@L["Orders.DeliveryFee"]</dt><dd>@(Fee == 0 ? L["Orders.FreeDelivery"] : Fmt.Money(Fee))</dd></div>
+                    <div class="ad-totals__grand"><dt>@L["Orders.Total"]</dt><dd>@Fmt.Money(Cart.Subtotal + Fee)</dd></div>
+                </dl>
+
+                @if (MissingForFreeDelivery > 0)
+                {
+                    <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@L["Cart.MissingForFree", Fmt.Money(MissingForFreeDelivery)]</MudAlert>
+                }
+                @if (BelowMinimum)
+                {
+                    <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-3">@L["Cart.BelowMinimum", Fmt.Money(Store.Info.MinimumOrderAmount ?? 0)]</MudAlert>
+                }
+                @if (Session.Principal.IsStaff())
+                {
+                    <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@L["Cart.StaffHint"]</MudAlert>
+                }
+
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" DropShadow="false" FullWidth="true" Size="Size.Large"
+                           Class="mt-4" Disabled="@(BelowMinimum || Session.Principal.IsStaff())" OnClick="Checkout"
+                           EndIcon="@Icons.Material.Rounded.ArrowForward">
+                    @L["Cart.Checkout"]
+                </MudButton>
+                <MudButton Href="/" Variant="Variant.Text" FullWidth="true" Class="mt-1">@L["Cart.KeepShopping"]</MudButton>
+            </aside>
+        </div>
+    }
+</div>
+
+@code {
+    private decimal Fee => Store.DeliveryFeeFor(Cart.Subtotal);
+
+    private decimal MissingForFreeDelivery =>
+        Store.Info.FreeDeliveryThreshold is > 0 && Store.Info.DeliveryFee > 0 && Cart.Subtotal < Store.Info.FreeDeliveryThreshold
+            ? Store.Info.FreeDeliveryThreshold.Value - Cart.Subtotal
+            : 0;
+
+    private bool BelowMinimum => Store.Info.MinimumOrderAmount is > 0 && Cart.Subtotal < Store.Info.MinimumOrderAmount;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Cart.Changed += OnCartChanged;
+
+        // Prices may have changed since the products went into the cart.
+        try
+        {
+            await Cart.ReconcileAsync(await StoreApi.GetCatalogAsync());
+        }
+        catch (ApiException)
+        {
+            // Offline: keep the cart as it is; the API recalculates every price when the order is placed.
+        }
+    }
+
+    private void Checkout() =>
+        Navigation.NavigateTo(Session.Principal.IsCustomer() ? "/checkout" : LandingRoutes.LoginFor("/checkout"));
+
+    private void OnCartChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Cart.Changed -= OnCartChanged;
+}

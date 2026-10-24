@@ -1,0 +1,125 @@
+@page "/admin/entregas"
+@attribute [Authorize(Roles = AppRoles.Staff)]
+@inject DeliveriesApi Deliveries
+@inject FleetApi Fleet
+@inject StoreState Store
+@inject UiActions Ui
+
+<div class="ad-page">
+    <PageHeader Title="@L["Deliveries.Title"]" Icon="@Icons.Material.Rounded.Route">
+        <MudButton Href="/admin/rastreamento" Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Rounded.Map">@L["Nav.LiveMap"]</MudButton>
+        <MudButton Href="/admin/entregas/nova" Variant="Variant.Filled" Color="Color.Primary" DropShadow="false" StartIcon="@Icons.Material.Rounded.AddRoad">@L["Nav.PlanDelivery"]</MudButton>
+    </PageHeader>
+
+    <section class="ad-card ad-filters">
+        <MudGrid Spacing="2">
+            <MudItem xs="12" sm="6" md="3">
+                <MudSelect T="DeliveryStatus?" Value="_filter.Status" ValueChanged="@(v => SetAsync(() => _filter.Status = v))" Label="@L["Orders.Status"]"
+                           Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" ToStringFunc="@(s => L.Enum(s, string.Empty))">
+                    @foreach (var status in Enum.GetValues<DeliveryStatus>())
+                    {
+                        <MudSelectItem T="DeliveryStatus?" Value="@status">@L.Enum(status)</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudSelect T="Guid?" Value="_filter.DriverId" ValueChanged="@(v => SetAsync(() => _filter.DriverId = v))" Label="@L["Deliveries.Driver"]"
+                           Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true"
+                           ToStringFunc="@(id => _drivers.FirstOrDefault(d => d.Id == id)?.Name ?? string.Empty)">
+                    @foreach (var driver in _drivers)
+                    {
+                        <MudSelectItem T="Guid?" Value="@driver.Id">@driver.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="6" md="3">
+                <MudDatePicker Date="_filter.From" DateChanged="@(d => SetAsync(() => _filter.From = d))" Label="@L["Common.From"]"
+                               Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Culture="@Fmt.Culture" DateFormat="dd/MM/yyyy" />
+            </MudItem>
+            <MudItem xs="6" md="3">
+                <MudDatePicker Date="_filter.To" DateChanged="@(d => SetAsync(() => _filter.To = d))" Label="@L["Common.To"]"
+                               Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Culture="@Fmt.Culture" DateFormat="dd/MM/yyyy" />
+            </MudItem>
+        </MudGrid>
+    </section>
+
+    <section class="ad-card ad-card--flush">
+        <MudDataGrid T="DeliveryListItemDto" Items="@(_page?.Items ?? [])" Loading="_loading" Hover="true" Dense="true" Elevation="0" Class="ad-grid">
+            <Columns>
+                <TemplateColumn Title="@L["Deliveries.Number"]" Sortable="false">
+                    <CellTemplate><a class="ad-link" href="@($"/admin/entregas/{context.Item.Id}")">@context.Item.Number</a></CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="@L["Deliveries.ScheduledFor"]" Sortable="false">
+                    <CellTemplate>@Fmt.DateAndTime(Store.ToLocal(context.Item.ScheduledFor))</CellTemplate>
+                </TemplateColumn>
+                <PropertyColumn Property="x => x.DriverName" Title="@L["Deliveries.Driver"]" Sortable="false" />
+                <TemplateColumn Title="@L["Deliveries.Vehicle"]" Sortable="false">
+                    <CellTemplate>
+                        <span class="d-inline-flex align-center gap-1"><MudIcon Icon="@StatusStyles.Icon(context.Item.VehicleType)" Size="Size.Small" />@context.Item.VehiclePlate</span>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="@L["Orders.Status"]" Sortable="false">
+                    <CellTemplate><StatusChip Text="@L.Enum(context.Item.Status)" Color="@StatusStyles.For(context.Item.Status)" /></CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="@L["Deliveries.Stops"]" Sortable="false">
+                    <CellTemplate>
+                        <div class="ad-progress">
+                            <MudProgressLinear Value="@Percent(context.Item)" Color="Color.Success" Rounded="true" Size="Size.Small" />
+                            <span class="ad-small">@L["Deliveries.StopsProgress", context.Item.StopsDelivered, context.Item.StopsTotal]</span>
+                            @if (context.Item.StopsFailed > 0)
+                            {
+                                <span class="ad-small ad-text-error">@L["Deliveries.StopsFailed", context.Item.StopsFailed]</span>
+                            }
+                        </div>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="@L["Deliveries.LastPosition"]" Sortable="false">
+                    <CellTemplate>@(context.Item.LastPositionAt is { } at ? Fmt.Time(Store.ToLocal(at)) : "—")</CellTemplate>
+                </TemplateColumn>
+            </Columns>
+            <NoRecordsContent>
+                <EmptyState Icon="@Icons.Material.Rounded.Route" Title="@L["Deliveries.None"]" Class="ad-empty--compact" />
+            </NoRecordsContent>
+        </MudDataGrid>
+        @if (_page is { TotalPages: > 1 })
+        {
+            <div class="ad-pager">
+                <MudPagination Count="_page.TotalPages" Selected="_filter.Page" SelectedChanged="@(p => SetAsync(() => _filter.Page = p, resetPage: false))" Color="Color.Primary" />
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    private readonly DeliveryQuery _filter = new() { PageSize = 25 };
+    private PagedResult<DeliveryListItemDto>? _page;
+    private IReadOnlyList<DriverDto> _drivers = [];
+    private bool _loading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _drivers = await Ui.LoadAsync(() => Fleet.GetDriversAsync()) ?? [];
+        await LoadAsync();
+    }
+
+    private static double Percent(DeliveryListItemDto item) =>
+        item.StopsTotal == 0 ? 0 : 100d * (item.StopsDelivered + item.StopsFailed) / item.StopsTotal;
+
+    private Task SetAsync(Action change, bool resetPage = true)
+    {
+        change();
+        if (resetPage)
+        {
+            _filter.Page = 1;
+        }
+
+        return LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _page = await Ui.LoadAsync(() => Deliveries.SearchAsync(_filter)) ?? PagedResult<DeliveryListItemDto>.Empty();
+        _loading = false;
+    }
+}

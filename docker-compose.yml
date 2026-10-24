@@ -1,0 +1,101 @@
+# ArtDash no Docker: a aplicação (Dockerfile na raiz) e, opcionalmente, o Cloudflare Tunnel.
+# O banco é um SQL Server externo, informado em ARTDASH_CONNECTION_STRING; as tabelas e os dados iniciais são
+# criados pela própria aplicação na primeira execução.
+#
+#   artdash               a aplicação, em http://localhost:8080 (ARTDASH_HTTP_PORT). Sobe sempre.
+#   cloudflared-artdash   perfil "tunnel": publica a aplicação na internet (CLOUDFLARE_TUNNEL_TOKEN).
+#
+#   docker compose up -d --build                        só a aplicação
+#   docker compose --profile tunnel up -d --build       aplicação + túnel
+#   docker compose --profile "*" down                   para tudo (mantém o volume de uploads e logs)
+#
+# Ou defina COMPOSE_PROFILES=tunnel no .env e use só "docker compose up -d". Senhas, domínio e token vêm de
+# variáveis de ambiente ou de um arquivo .env ao lado deste (veja .env.example).
+
+name: artdash
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  # Host web: API REST + Blazor Server + SignalR. HTTP puro na porta 8080; o HTTPS fica no túnel (ou em outro
+  # proxy reverso), que repassa X-Forwarded-For/Proto. Healthcheck em /healthz (definido no Dockerfile).
+  artdash:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: artdash-ui:${ARTDASH_IMAGE_TAG:-dev}
+    pull_policy: build
+    container_name: artdash-ui
+    ports:
+      # Só no localhost: o acesso público passa pelo túnel, nunca direto pela porta.
+      - "127.0.0.1:${ARTDASH_HTTP_PORT:-8080}:8080"
+    extra_hosts:
+      # Linux não tem host.docker.internal por padrão (Docker Desktop tem): permite usar um SQL Server do host.
+      - "host.docker.internal:host-gateway"
+    environment:
+      ASPNETCORE_ENVIRONMENT: "${ARTDASH_ENVIRONMENT:-Production}"
+      # Obrigatório: o SQL Server externo. No mesmo host, use Server=host.docker.internal,<porta>.
+      ConnectionStrings__DefaultConnection: "${ARTDASH_CONNECTION_STRING:-}"
+      # Obrigatório (mínimo 32 caracteres); a aplicação não sobe sem ele. Gere com: openssl rand -base64 48
+      Jwt__SigningKey: "${ARTDASH_JWT_SIGNING_KEY:-}"
+      # Tenant pelo host: domínio próprio cadastrado, depois subdomínio do domínio raiz (acme.<raiz> = slug "acme"),
+      # depois o tenant padrão.
+      MultiTenancy__DefaultTenant: "${ARTDASH_DEFAULT_TENANT:-}"
+      MultiTenancy__RootDomains__0: "${ARTDASH_ROOT_DOMAIN:-localhost}"
+      # Endereço público (webhook do Mercado Pago). Vazio: usa o endereço da requisição.
+      App__PublicBaseUrl: "${ARTDASH_PUBLIC_URL:-}"
+      # O circuito Blazor chama a API no próprio processo, por loopback.
+      Api__BaseUrl: "http://localhost:8080"
+      # Confia nos X-Forwarded-* vindos da rede do compose (cloudflared): IP real do cliente nos rate limits
+      # e esquema https (sem redirecionamento em loop).
+      ForwardedHeaders__Enabled: "true"
+      ForwardedHeaders__KnownNetworks__0: "${ARTDASH_NETWORK_SUBNET:-172.31.250.0/24}"
+      ForwardedHeaders__ForwardLimit: "1"
+      Features__ApiReference: "${ARTDASH_API_REFERENCE:-false}"
+      # Primeira empresa e seu administrador, criados na inicialização quando ainda não existem.
+      Seed__Enabled: "${ARTDASH_SEED_ENABLED:-true}"
+      Seed__Tenants__0__Slug: "${ARTDASH_TENANT_SLUG:-demo}"
+      Seed__Tenants__0__Name: "${ARTDASH_TENANT_NAME:-Distribuidora Demo}"
+      Seed__Tenants__0__Hosts__0: "${ARTDASH_TENANT_HOST:-localhost}"
+      Seed__Tenants__0__AdminEmail: "${ARTDASH_ADMIN_EMAIL:-}"
+      Seed__Tenants__0__AdminPassword: "${ARTDASH_ADMIN_PASSWORD:-}"
+      Seed__Tenants__0__SampleData: "${ARTDASH_SAMPLE_DATA:-false}"
+      TZ: "America/Sao_Paulo"
+    volumes:
+      # Logs (App_Data/logs) e uploads de logos e fotos de produtos (App_Data/uploads).
+      - artdash-appdata:/app/App_Data
+    logging: *logging
+    restart: unless-stopped
+
+  # Cloudflare Tunnel (túnel nomeado, configurado no painel Zero Trust › Networks › Tunnels). Em "Public
+  # Hostnames", aponte cada domínio para o serviço HTTP "artdash:8080". Para várias empresas por subdomínio,
+  # use um hostname curinga (*.seudominio.com.br) e ARTDASH_ROOT_DOMAIN=seudominio.com.br.
+  cloudflared-artdash:
+    image: cloudflare/cloudflared:${CLOUDFLARED_VERSION:-latest}
+    container_name: cloudflared-artdash
+    profiles: ["tunnel"]
+    command: tunnel --no-autoupdate --metrics 0.0.0.0:2000 run
+    environment:
+      TUNNEL_TOKEN: "${CLOUDFLARE_TUNNEL_TOKEN:-}"
+    depends_on:
+      artdash:
+        condition: service_healthy
+        # Permite apontar o túnel para uma aplicação fora do compose (ex.: dotnet run no host).
+        required: false
+    logging: *logging
+    restart: unless-stopped
+
+networks:
+  default:
+    name: artdash
+    ipam:
+      config:
+        - subnet: "${ARTDASH_NETWORK_SUBNET:-172.31.250.0/24}"
+
+volumes:
+  artdash-appdata:
+    name: artdash-appdata

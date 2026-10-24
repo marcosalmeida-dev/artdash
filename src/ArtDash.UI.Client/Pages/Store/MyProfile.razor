@@ -1,0 +1,87 @@
+@page "/minha-conta"
+@attribute [Authorize(Roles = AppRoles.Customer)]
+@inject MeApi Me
+@inject UiActions Ui
+
+<div class="ad-page ad-page--narrow">
+    <PageHeader Title="@L["Profile.Title"]" Icon="@Icons.Material.Rounded.Person">
+        <MudButton Href="/conta/senha" Variant="Variant.Text" StartIcon="@Icons.Material.Rounded.Password">@L["Nav.ChangePassword"]</MudButton>
+    </PageHeader>
+
+    @if (_request is null)
+    {
+        <LoadingScreen />
+    }
+    else
+    {
+        <div class="ad-stack">
+            <section class="ad-card">
+                <h2 class="ad-card__title">@L["Profile.Personal"]</h2>
+                <MudGrid Spacing="2">
+                    <MudItem xs="12" sm="6">
+                        <MudTextField T="string" @bind-Value="_request.Name" Label="@L["Profile.Name"]" Variant="Variant.Outlined"
+                                      Margin="Margin.Dense" Required="true" MaxLength="150" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField T="string" Value="@_email" Label="@L["Profile.Email"]" Variant="Variant.Outlined"
+                                      Margin="Margin.Dense" ReadOnly="true" HelperText="@L["Profile.EmailHint"]" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField T="string" @bind-Value="_request.Phone" Label="@L["Profile.Phone"]" Variant="Variant.Outlined"
+                                      Margin="Margin.Dense" InputType="InputType.Telephone" MaxLength="20" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField T="string" @bind-Value="_request.Document" Label="@L["Profile.Document"]" Variant="Variant.Outlined"
+                                      Margin="Margin.Dense" MaxLength="18" HelperText="@L["Profile.DocumentHint"]" />
+                    </MudItem>
+                </MudGrid>
+            </section>
+
+            <section class="ad-card">
+                <h2 class="ad-card__title">@L["Profile.Address"]</h2>
+                <AddressEditor Address="_request.Address" />
+            </section>
+
+            <div class="d-flex justify-end">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" DropShadow="false" Disabled="_saving"
+                           StartIcon="@Icons.Material.Rounded.Save" OnClick="SaveAsync">@L["Common.Save"]</MudButton>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private UpdateMyProfileRequest? _request;
+    private string? _email;
+    private bool _saving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var profile = await Ui.LoadAsync(() => Me.GetProfileAsync());
+        if (profile is null)
+        {
+            return;
+        }
+
+        _email = profile.Email;
+        _request = new UpdateMyProfileRequest
+        {
+            Name = profile.Name,
+            Phone = profile.Phone,
+            Document = profile.Document,
+            Address = profile.Address.Clone()
+        };
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_request is null)
+        {
+            return;
+        }
+
+        _saving = true;
+        await Ui.RunAsync(() => Me.UpdateProfileAsync(_request), L["Profile.Saved"]);
+        _saving = false;
+    }
+}

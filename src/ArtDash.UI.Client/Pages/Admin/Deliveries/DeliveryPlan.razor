@@ -1,0 +1,229 @@
+@page "/admin/entregas/nova"
+@attribute [Authorize(Roles = AppRoles.Staff)]
+@inject DeliveriesApi Deliveries
+@inject OrdersApi Orders
+@inject FleetApi Fleet
+@inject StoreState Store
+@inject UiActions Ui
+@inject NavigationManager Navigation
+
+@* Plans a run: one driver, one vehicle, the orders in the order they will be visited. *@
+<div class="ad-page">
+    <PageHeader Title="@L["Plan.Title"]" Icon="@Icons.Material.Rounded.AddRoad" BackHref="/admin/entregas" Subtitle="@L["Plan.Subtitle"]" />
+
+    @if (_orders is null)
+    {
+        <LoadingScreen />
+    }
+    else
+    {
+        <div class="ad-split ad-split--wide">
+            <div class="ad-stack">
+                <section class="ad-card ad-card--flush">
+                    <h2 class="ad-card__title ad-card__title--pad">@L["Plan.Orders", _orders.Count]</h2>
+                    @if (_orders.Count == 0)
+                    {
+                        <EmptyState Icon="@Icons.Material.Rounded.Inventory" Title="@L["Plan.NoOrders"]" Text="@L["Plan.NoOrdersHint"]" Class="ad-empty--compact" />
+                    }
+                    else
+                    {
+                        <div class="ad-rows">
+                            @foreach (var order in _orders)
+                            {
+                                var sequence = _selected.IndexOf(order.OrderId) + 1;
+                                <div class="ad-row ad-row--select @(sequence > 0 ? "is-selected" : null)" @onclick="@(() => Toggle(order))">
+                                    <span class="ad-seq">@(sequence > 0 ? sequence.ToString() : "")</span>
+                                    <span class="ad-row__main">
+                                        <strong>#@order.Number · @order.CustomerName</strong>
+                                        <span class="ad-muted ad-small">@order.District · @order.City · @Fmt.Weight(order.TotalWeightKg)</span>
+                                    </span>
+                                    <StatusChip Text="@L.Enum(order.Status)" Color="@StatusStyles.For(order.Status)" />
+                                    <span class="ad-row__side"><strong>@Fmt.Money(order.Total)</strong><span class="ad-muted ad-small">@L.Enum(order.PaymentTiming)</span></span>
+                                    @if (sequence > 0)
+                                    {
+                                        <span class="ad-row__tools" @onclick:stopPropagation="true">
+                                            <MudIconButton Icon="@Icons.Material.Rounded.ArrowUpward" Size="Size.Small" Disabled="@(sequence == 1)"
+                                                           aria-label="@L["Plan.MoveUp"]" OnClick="@(() => Move(order.OrderId, -1))" />
+                                            <MudIconButton Icon="@Icons.Material.Rounded.ArrowDownward" Size="Size.Small" Disabled="@(sequence == _selected.Count)"
+                                                           aria-label="@L["Plan.MoveDown"]" OnClick="@(() => Move(order.OrderId, 1))" />
+                                        </span>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                </section>
+
+                @if (_markers.Count > 0)
+                {
+                    <section class="ad-card ad-card--flush">
+                        <LeafletMap Markers="_markers" Height="340px" AutoFit="true" />
+                    </section>
+                }
+            </div>
+
+            <aside class="ad-stack">
+                <section class="ad-card">
+                    <h2 class="ad-card__title">@L["Plan.Run"]</h2>
+                    <MudSelect T="Guid?" @bind-Value="_request.DriverId" Label="@L["Deliveries.Driver"]" Variant="Variant.Outlined" Margin="Margin.Dense"
+                               ToStringFunc="@(id => _drivers.FirstOrDefault(d => d.Id == id)?.Name ?? string.Empty)">
+                        @foreach (var driver in _drivers)
+                        {
+                            <MudSelectItem T="Guid?" Value="@driver.Id" Disabled="@driver.IsOnDelivery">
+                                @driver.Name
+                                @if (driver.IsOnDelivery)
+                                {
+                                    <span class="ad-muted"> (@L["Plan.OnDelivery"])</span>
+                                }
+                            </MudSelectItem>
+                        }
+                    </MudSelect>
+                    <MudSelect T="Guid?" @bind-Value="_request.VehicleId" Label="@L["Deliveries.Vehicle"]" Variant="Variant.Outlined" Margin="Margin.Dense"
+                               Class="mt-3" ToStringFunc="@(id => VehicleLabel(_vehicles.FirstOrDefault(v => v.Id == id)))">
+                        @foreach (var vehicle in _vehicles)
+                        {
+                            <MudSelectItem T="Guid?" Value="@vehicle.Id">@VehicleLabel(vehicle)</MudSelectItem>
+                        }
+                    </MudSelect>
+                    <MudGrid Spacing="2" Class="mt-1">
+                        <MudItem xs="7">
+                            <MudDatePicker @bind-Date="_date" Label="@L["Plan.Date"]" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                           MinDate="@Store.Today" Culture="@Fmt.Culture" DateFormat="dd/MM/yyyy" />
+                        </MudItem>
+                        <MudItem xs="5">
+                            <MudTimePicker @bind-Time="_time" Label="@L["Plan.Time"]" Variant="Variant.Outlined" Margin="Margin.Dense" AmPm="false" />
+                        </MudItem>
+                    </MudGrid>
+                    <MudTextField T="string" @bind-Value="_request.Notes" Label="@L["Checkout.Notes"]" Variant="Variant.Outlined"
+                                  Lines="2" MaxLength="500" Class="mt-2" />
+                </section>
+
+                <section class="ad-card ad-summary">
+                    <dl class="ad-kv">
+                        <div><dt>@L["Plan.SelectedOrders"]</dt><dd>@_selected.Count</dd></div>
+                        <div><dt>@L["Plan.Weight"]</dt><dd>@Fmt.Weight(SelectedWeight)</dd></div>
+                        @if (SelectedVehicle?.CapacityKg is { } capacity)
+                        {
+                            <div><dt>@L["Plan.Capacity"]</dt><dd class="@(SelectedWeight > capacity ? "ad-text-error" : null)">@Fmt.Weight(capacity)</dd></div>
+                        }
+                        <div><dt>@L["Plan.ToCollect"]</dt><dd>@Fmt.Money(ToCollect)</dd></div>
+                    </dl>
+                    @if (SelectedVehicle?.CapacityKg is { } max && SelectedWeight > max)
+                    {
+                        <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-3">@L["Plan.OverCapacity"]</MudAlert>
+                    }
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" DropShadow="false" FullWidth="true" Size="Size.Large" Class="mt-3"
+                               Disabled="@(!CanCreate)" OnClick="CreateAsync" StartIcon="@Icons.Material.Rounded.Route">@L["Plan.Create"]</MudButton>
+                </section>
+            </aside>
+        </div>
+    }
+</div>
+
+@code {
+    private readonly CreateDeliveryRequest _request = new();
+    private readonly List<Guid> _selected = [];
+    private List<DeliverableOrderDto>? _orders;
+    private IReadOnlyList<DriverDto> _drivers = [];
+    private IReadOnlyList<VehicleDto> _vehicles = [];
+    private IReadOnlyList<MapMarker> _markers = [];
+    private DateTime? _date;
+    private TimeSpan? _time;
+    private bool _creating;
+
+    private VehicleDto? SelectedVehicle => _vehicles.FirstOrDefault(v => v.Id == _request.VehicleId);
+
+    private IEnumerable<DeliverableOrderDto> SelectedOrders =>
+        _selected.Select(id => _orders!.First(o => o.OrderId == id));
+
+    private decimal SelectedWeight => SelectedOrders.Sum(o => o.TotalWeightKg ?? 0);
+
+    private decimal ToCollect => SelectedOrders.Where(o => o.PaymentTiming == PaymentTiming.OnDelivery && o.PaymentStatus != PaymentStatus.Paid).Sum(o => o.Total);
+
+    private bool CanCreate => !_creating && _selected.Count > 0 && _request.DriverId is not null && _request.VehicleId is not null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var orders = Ui.LoadAsync(() => Orders.GetDeliverableAsync());
+        var drivers = Ui.LoadAsync(() => Fleet.GetDriversAsync(onlyActive: true));
+        var vehicles = Ui.LoadAsync(() => Fleet.GetVehiclesAsync(onlyActive: true));
+        await Task.WhenAll(orders, drivers, vehicles);
+
+        _orders = (await orders)?.ToList() ?? [];
+        _drivers = await drivers ?? [];
+        _vehicles = await vehicles ?? [];
+        _date = Store.Today;
+        _time = Store.Now.TimeOfDay.Add(TimeSpan.FromMinutes(30));
+        BuildMarkers();
+    }
+
+    private static string VehicleLabel(VehicleDto? vehicle) =>
+        vehicle is null ? string.Empty : $"{vehicle.Plate} · {vehicle.Model}{(vehicle.CapacityKg is { } kg ? $" · {Fmt.Weight(kg)}" : "")}";
+
+    private void Toggle(DeliverableOrderDto order)
+    {
+        if (!_selected.Remove(order.OrderId))
+        {
+            _selected.Add(order.OrderId);
+        }
+
+        BuildMarkers();
+    }
+
+    private void Move(Guid orderId, int direction)
+    {
+        var index = _selected.IndexOf(orderId);
+        var target = index + direction;
+        if (index < 0 || target < 0 || target >= _selected.Count)
+        {
+            return;
+        }
+
+        (_selected[index], _selected[target]) = (_selected[target], _selected[index]);
+        BuildMarkers();
+    }
+
+    private void BuildMarkers()
+    {
+        var markers = new List<MapMarker>();
+        if (Store.Info.Address is { HasCoordinates: true } store)
+        {
+            markers.Add(new MapMarker("store", store.Latitude!.Value, store.Longitude!.Value, MapMarkerKinds.Store, null, Store.Info.Name));
+        }
+
+        foreach (var order in _orders ?? [])
+        {
+            if (order is not { Latitude: { } latitude, Longitude: { } longitude })
+            {
+                continue;
+            }
+
+            var sequence = _selected.IndexOf(order.OrderId) + 1;
+            markers.Add(new MapMarker(order.OrderId.ToString(), latitude, longitude,
+                sequence > 0 ? MapMarkerKinds.Stop : MapMarkerKinds.Destination,
+                sequence > 0 ? sequence.ToString() : "•",
+                $"#{order.Number} · {order.CustomerName}"));
+        }
+
+        _markers = markers;
+    }
+
+    private async Task CreateAsync()
+    {
+        _creating = true;
+        _request.OrderIds = [.. _selected];
+
+        // Store wall-clock time (Unspecified kind): the API converts it with the store's time zone.
+        var date = (_date ?? Store.Today).Date;
+        _request.ScheduledFor = DateTime.SpecifyKind(date + (_time ?? TimeSpan.Zero), DateTimeKind.Unspecified);
+
+        Guid id = default;
+        if (await Ui.RunAsync(async () => id = await Deliveries.CreateAsync(_request), L["Plan.Created"]))
+        {
+            Navigation.NavigateTo($"/admin/entregas/{id}");
+            return;
+        }
+
+        _creating = false;
+    }
+}

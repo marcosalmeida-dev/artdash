@@ -1,0 +1,38 @@
+@inject StoreState Store
+
+@* Status history, newest first. *@
+@if (History.Count == 0)
+{
+    <p class="ad-muted">@L["Orders.NoHistory"]</p>
+}
+else
+{
+    <MudTimeline TimelinePosition="TimelinePosition.Start" TimelineAlign="TimelineAlign.Default" Class="ad-timeline">
+        @foreach (var entry in History.OrderByDescending(h => h.ChangedAt))
+        {
+            <MudTimelineItem Color="@StatusStyles.For(entry.To)" Size="Size.Small">
+                <ItemContent>
+                    <div class="ad-timeline__row">
+                        <span class="ad-timeline__status">@L.Enum(entry.To)</span>
+                        <span class="ad-timeline__when">@Fmt.DateAndTime(Store.ToLocal(entry.ChangedAt))</span>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(entry.Note))
+                    {
+                        <div class="ad-timeline__note">@entry.Note</div>
+                    }
+                    @if (ShowAuthor && !string.IsNullOrWhiteSpace(entry.ChangedBy))
+                    {
+                        <div class="ad-timeline__by">@L["Orders.ChangedBy", entry.ChangedBy]</div>
+                    }
+                </ItemContent>
+            </MudTimelineItem>
+        }
+    </MudTimeline>
+}
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<OrderStatusHistoryDto> History { get; set; } = [];
+
+    /// <summary>Who made each change (back office only).</summary>
+    [Parameter] public bool ShowAuthor { get; set; }
+}

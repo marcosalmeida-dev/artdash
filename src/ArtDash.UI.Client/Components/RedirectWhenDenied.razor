@@ -1,0 +1,37 @@
+@inject NavigationManager Navigation
+
+@* Signed out: off to the sign-in page (and back here afterwards). Signed in without the role: say so. *@
+@if (_signedIn)
+{
+    <div class="ad-page ad-page--narrow">
+        <EmptyState Icon="@Icons.Material.Rounded.Lock" Title="@L["Access.DeniedTitle"]" Text="@L["Access.DeniedText"]">
+            <MudButton Href="@LandingRoutes.For(_user)" Variant="Variant.Filled" Color="Color.Primary" DropShadow="false">
+                @L["Access.GoHome"]
+            </MudButton>
+        </EmptyState>
+    </div>
+}
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationState { get; set; }
+
+    private bool _signedIn;
+    private ClaimsPrincipal? _user;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _user = AuthenticationState is null ? null : (await AuthenticationState).User;
+        _signedIn = _user.IsSignedIn();
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        // After the first render, not during it: the router must own the navigation (artstore-fs lesson —
+        // an early navigation becomes an enhanced-navigation fetch that carries no token).
+        if (firstRender && !_signedIn)
+        {
+            var returnUrl = "/" + Navigation.ToBaseRelativePath(Navigation.Uri);
+            Navigation.NavigateTo(LandingRoutes.LoginFor(returnUrl), replace: true);
+        }
+    }
+}

@@ -1,0 +1,36 @@
+@inherits BrandAwareComponent
+@inject ThemePreference ThemePref
+
+@* Three states (system → light → dark); the icon shows the state it is in. Hidden when the brand disallows dark mode. *@
+@if (Brand.Current.AllowDarkMode)
+{
+    <MudTooltip Text="@Label" Placement="Placement.Bottom">
+        <MudIconButton Icon="@Icon" Class="ad-icon-btn" aria-label="@Label" OnClick="ThemePref.CycleAsync" />
+    </MudTooltip>
+}
+
+@code {
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        ThemePref.Changed += OnThemeChanged;
+    }
+
+    private void OnThemeChanged() => _ = InvokeAsync(StateHasChanged);
+
+    protected override void OnDisposing() => ThemePref.Changed -= OnThemeChanged;
+
+    private string Icon => ThemePref.Mode switch
+    {
+        ThemeMode.Light => Icons.Material.Rounded.LightMode,
+        ThemeMode.Dark => Icons.Material.Rounded.DarkMode,
+        _ => Icons.Material.Rounded.BrightnessAuto
+    };
+
+    private string Label => ThemePref.Mode switch
+    {
+        ThemeMode.Light => L["Theme.Light"],
+        ThemeMode.Dark => L["Theme.Dark"],
+        _ => L["Theme.System"]
+    };
+}

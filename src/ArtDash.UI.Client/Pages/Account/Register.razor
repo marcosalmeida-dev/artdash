@@ -1,0 +1,100 @@
+@page "/cadastro"
+@inherits BrandAwareComponent
+@inject AuthSession Session
+@inject NavigationManager Navigation
+
+<PageTitle>@L["Register.Title"] · @Brand.Current.DisplayName</PageTitle>
+
+<div class="ad-auth">
+    <div class="ad-auth__card ad-auth__card--wide">
+        <div class="ad-auth__brand">
+            <BrandMark Variant="store" />
+        </div>
+        <h1 class="ad-auth__title">@L["Register.Title"]</h1>
+        <p class="ad-auth__subtitle">@L["Register.Subtitle"]</p>
+
+        <form class="ad-auth__form" @onsubmit="RegisterAsync" @onsubmit:preventDefault="true">
+            <MudTextField T="string" @bind-Value="_request.FullName" Label="@L["Register.FullName"]" Variant="Variant.Outlined"
+                          Required="true" Immediate="true" MaxLength="150" AutoFocus="true" />
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="6">
+                    <MudTextField T="string" @bind-Value="_request.Email" Label="@L["Login.Email"]" Variant="Variant.Outlined"
+                                  InputType="InputType.Email" Required="true" Immediate="true" MaxLength="150" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField T="string" @bind-Value="_request.Phone" Label="@L["Profile.Phone"]" Variant="Variant.Outlined"
+                                  InputType="InputType.Telephone" MaxLength="20" />
+                </MudItem>
+            </MudGrid>
+            <MudTextField T="string" @bind-Value="_request.Document" Label="@L["Profile.Document"]" Variant="Variant.Outlined"
+                          MaxLength="18" HelperText="@L["Register.DocumentHint"]" />
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="6">
+                    <MudTextField T="string" @bind-Value="_request.Password" Label="@L["Login.Password"]" Variant="Variant.Outlined"
+                                  InputType="InputType.Password" Required="true" Immediate="true" HelperText="@L["Register.PasswordHint"]" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField T="string" @bind-Value="_request.ConfirmPassword" Label="@L["Register.ConfirmPassword"]"
+                                  Variant="Variant.Outlined" InputType="InputType.Password" Required="true" Immediate="true"
+                                  Error="@PasswordsDiffer" ErrorText="@L["Register.PasswordsDiffer"]" />
+                </MudItem>
+            </MudGrid>
+
+            @if (_error is not null)
+            {
+                <MudAlert Severity="Severity.Error" Dense="true">@_error</MudAlert>
+            }
+
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" DropShadow="false"
+                       Size="Size.Large" FullWidth="true" Disabled="@(_busy || !CanSubmit)">
+                @if (_busy)
+                {
+                    <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
+                }
+                @L["Register.Submit"]
+            </MudButton>
+        </form>
+
+        <div class="ad-auth__footer">
+            <span>@L["Register.HaveAccount"]</span>
+            <a href="@LandingRoutes.LoginFor(LandingRoutes.SafeReturnUrl(ReturnUrl))">@L["Register.SignIn"]</a>
+        </div>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "returnUrl")] public string? ReturnUrl { get; set; }
+
+    private readonly RegisterCustomerRequest _request = new();
+    private bool _busy;
+    private string? _error;
+
+    private bool PasswordsDiffer => !string.IsNullOrEmpty(_request.ConfirmPassword) && _request.Password != _request.ConfirmPassword;
+
+    private bool CanSubmit =>
+        !string.IsNullOrWhiteSpace(_request.FullName) &&
+        !string.IsNullOrWhiteSpace(_request.Email) &&
+        _request.Password.Length >= 8 &&
+        !PasswordsDiffer;
+
+    private async Task RegisterAsync()
+    {
+        if (!CanSubmit || _busy)
+        {
+            return;
+        }
+
+        _busy = true;
+        _error = null;
+
+        var outcome = await Session.RegisterAsync(_request);
+        if (outcome.Success)
+        {
+            Navigation.NavigateTo(LandingRoutes.SafeReturnUrl(ReturnUrl) ?? LandingRoutes.Storefront, replace: true);
+            return;
+        }
+
+        _error = AuthMessages.Describe(L, outcome);
+        _busy = false;
+    }
+}

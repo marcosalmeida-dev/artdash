@@ -1,0 +1,72 @@
+@inject DriverApi Driver
+@inject UiActions Ui
+
+@* Proof of delivery: who received it, and what was collected at the door (on-delivery orders). *@
+<MudDialog Class="ad-dialog">
+    <DialogContent>
+        <p class="ad-muted mb-3">@Stop.CustomerName · @Stop.Address.ToSingleLine()</p>
+        <MudTextField T="string" @bind-Value="_request.RecipientName" Label="@L["Driver.Recipient"]" Variant="Variant.Outlined"
+                      Margin="Margin.Dense" MaxLength="150" AutoFocus="true" Class="mb-3" />
+
+        @if (Stop.AmountToCollect > 0)
+        {
+            <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">@L["Driver.Collect", Fmt.Money(Stop.AmountToCollect)]</MudAlert>
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="PaymentMethod?" @bind-Value="_request.CollectedMethod" Label="@L["Payments.Method"]" Variant="Variant.Outlined"
+                               Margin="Margin.Dense" ToStringFunc="@(m => L.Enum(m))">
+                        @foreach (var method in CollectMethods)
+                        {
+                            <MudSelectItem T="PaymentMethod?" Value="@method">@L.Enum(method)</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudNumericField T="decimal?" @bind-Value="_request.CollectedAmount" Label="@L["Payments.Amount"]" Variant="Variant.Outlined"
+                                     Margin="Margin.Dense" Min="0m" Format="N2" Culture="@Fmt.Culture" Adornment="Adornment.Start" AdornmentText="R$" />
+                </MudItem>
+            </MudGrid>
+        }
+
+        <MudTextField T="string" @bind-Value="_request.Notes" Label="@L["Driver.DeliveryNotes"]" Variant="Variant.Outlined"
+                      Lines="2" MaxLength="500" Class="mt-3" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="@(() => MudDialog!.Cancel())">@L["Common.Cancel"]</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Success" DropShadow="false" Disabled="_saving" OnClick="SaveAsync"
+                   StartIcon="@Icons.Material.Rounded.TaskAlt">@L["Driver.ConfirmDelivery"]</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private static readonly PaymentMethod[] CollectMethods =
+        [PaymentMethod.Pix, PaymentMethod.CreditCard, PaymentMethod.DebitCard, PaymentMethod.Cash];
+
+    [CascadingParameter] private IMudDialogInstance? MudDialog { get; set; }
+
+    [Parameter] public DeliveryStopDto Stop { get; set; } = default!;
+    [Parameter] public Guid DeliveryId { get; set; }
+
+    private readonly CompleteStopRequest _request = new();
+    private bool _saving;
+
+    protected override void OnInitialized()
+    {
+        if (Stop.AmountToCollect > 0)
+        {
+            _request.CollectedMethod = Stop.PaymentMethod ?? PaymentMethod.Pix;
+            _request.CollectedAmount = Stop.AmountToCollect;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        _saving = true;
+        if (await Ui.RunAsync(() => Driver.CompleteStopAsync(DeliveryId, Stop.Id, _request), L["Driver.DeliveryRecorded"]))
+        {
+            MudDialog?.Close(DialogResult.Ok(true));
+        }
+
+        _saving = false;
+    }
+}

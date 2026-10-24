@@ -1,0 +1,161 @@
+@inject CustomersApi Customers
+@inject UiActions Ui
+
+@* Create / edit a customer: identification, contacts, delivery address and the pay-later (invoicing) terms. *@
+<MudDialog Class="ad-dialog">
+    <DialogContent>
+        @if (_request is null)
+        {
+            <LoadingScreen Inline="true" />
+        }
+        else
+        {
+            <div class="ad-stack ad-stack--tight">
+                <MudToggleGroup T="CustomerType" Value="_request.Type" ValueChanged="OnTypeChanged" Color="Color.Primary"
+                                Size="Size.Small" Class="ad-toggle">
+                    @foreach (var type in Enum.GetValues<CustomerType>())
+                    {
+                        <MudToggleItem Value="@type" Text="@L.Enum(type)" />
+                    }
+                </MudToggleGroup>
+
+                <MudGrid Spacing="2">
+                    <MudItem xs="12" sm="@(IsCompany ? 6 : 8)">
+                        <MudTextField T="string" @bind-Value="_request.Name" Label="@(IsCompany ? L["Customers.CompanyName"] : L["Customers.FullName"])"
+                                      Variant="Variant.Outlined" Margin="Margin.Dense" Required="true" RequiredError="@L["Validation.Required"]"
+                                      MaxLength="150" AutoFocus="@(CustomerId is null)" />
+                    </MudItem>
+                    @if (IsCompany)
+                    {
+                        <MudItem xs="12" sm="6">
+                            <MudTextField T="string" @bind-Value="_request.TradeName" Label="@L["Customers.TradeName"]"
+                                          Variant="Variant.Outlined" Margin="Margin.Dense" MaxLength="150" />
+                        </MudItem>
+                    }
+                    <MudItem xs="12" sm="4">
+                        <MudTextField T="string" @bind-Value="_request.Document" Label="@(IsCompany ? L["Customers.Cnpj"] : L["Customers.Cpf"])"
+                                      Variant="Variant.Outlined" Margin="Margin.Dense" MaxLength="18" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudTextField T="string" @bind-Value="_request.Phone" Label="@L["Customers.Phone"]" Variant="Variant.Outlined"
+                                      Margin="Margin.Dense" InputType="InputType.Telephone" MaxLength="20" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudTextField T="string" @bind-Value="_request.Email" Label="@L["Customers.Email"]" Variant="Variant.Outlined"
+                                      Margin="Margin.Dense" InputType="InputType.Email" MaxLength="150"
+                                      HelperText="@(_hasLogin ? L["Customers.EmailLoginHint"].Value : null)" />
+                    </MudItem>
+                </MudGrid>
+
+                <h3 class="ad-section-title">@L["Customers.DeliveryAddress"]</h3>
+                <AddressEditor Address="_request.Address" />
+
+                <h3 class="ad-section-title">@L["Customers.PayLater"]</h3>
+                <MudSwitch T="bool" @bind-Value="_request.AllowInvoicing" Color="Color.Primary" Label="@L["Customers.AllowInvoicing"]" />
+                @if (_request.AllowInvoicing)
+                {
+                    <MudGrid Spacing="2">
+                        <MudItem xs="12" sm="4">
+                            <MudNumericField T="int" @bind-Value="_request.PaymentTermDays" Label="@L["Customers.TermDays"]"
+                                             HelperText="@L["Customers.TermDaysHint"]" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                             Min="0" Max="180" Adornment="Adornment.End" AdornmentText="@L["Customers.Days"]" />
+                        </MudItem>
+                        <MudItem xs="12" sm="4">
+                            <MudNumericField T="decimal?" @bind-Value="_request.CreditLimit" Label="@L["Customers.CreditLimit"]"
+                                             HelperText="@L["Customers.CreditLimitHint"]" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                             Min="0m" Format="N2" Culture="@Fmt.Culture" Adornment="Adornment.Start" AdornmentText="R$" />
+                        </MudItem>
+                        @if (_openBalance > 0)
+                        {
+                            <MudItem xs="12" sm="4" Class="d-flex align-center">
+                                <StatusChip Text="@L["Customers.OpenBalance", Fmt.Money(_openBalance)]" Color="Color.Warning"
+                                            Icon="@Icons.Material.Rounded.AccountBalanceWallet" />
+                            </MudItem>
+                        }
+                    </MudGrid>
+                }
+
+                <MudTextField T="string" @bind-Value="_request.Notes" Label="@L["Customers.Notes"]" Variant="Variant.Outlined"
+                              Lines="2" MaxLength="1000" Class="mt-2" />
+                <MudSwitch T="bool" @bind-Value="_request.IsActive" Color="Color.Primary" Label="@L["Customers.ActiveLabel"]" />
+            </div>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="@(() => MudDialog!.Cancel())">@L["Common.Cancel"]</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" DropShadow="false" Disabled="@(_saving || _request is null)"
+                   OnClick="SaveAsync" StartIcon="@Icons.Material.Rounded.Save">@L["Common.Save"]</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance? MudDialog { get; set; }
+
+    /// <summary>The customer to edit; null creates a new one.</summary>
+    [Parameter] public Guid? CustomerId { get; set; }
+
+    private SaveCustomerRequest? _request;
+    private decimal _openBalance;
+    private bool _hasLogin;
+    private bool _saving;
+
+    private bool IsCompany => _request?.Type == CustomerType.Company;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (CustomerId is not { } id)
+        {
+            _request = new SaveCustomerRequest();
+            return;
+        }
+
+        var customer = await Ui.LoadAsync(() => Customers.GetAsync(id));
+        if (customer is null)
+        {
+            MudDialog?.Cancel();
+            return;
+        }
+
+        _request = SaveCustomerRequest.From(customer);
+        _openBalance = customer.OpenBalance;
+        _hasLogin = customer.UserId is not null;
+    }
+
+    private void OnTypeChanged(CustomerType type)
+    {
+        if (_request is null)
+        {
+            return;
+        }
+
+        _request.Type = type;
+        if (type == CustomerType.Individual)
+        {
+            _request.TradeName = null;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_request is null)
+        {
+            return;
+        }
+
+        _saving = true;
+        var request = _request;
+        request.Document = string.IsNullOrWhiteSpace(request.Document) ? null : Fmt.Digits(request.Document);
+        request.Phone = string.IsNullOrWhiteSpace(request.Phone) ? null : request.Phone.Trim();
+
+        var saved = CustomerId is { } id
+            ? await Ui.RunAsync(() => Customers.UpdateAsync(id, request), L["Common.Saved"])
+            : await Ui.RunAsync(() => Customers.CreateAsync(request), L["Customers.Created"]);
+
+        if (saved)
+        {
+            MudDialog?.Close(DialogResult.Ok(true));
+        }
+
+        _saving = false;
+    }
+}

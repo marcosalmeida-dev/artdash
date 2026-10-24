@@ -1,0 +1,109 @@
+@inject NavigationManager Navigation
+@inject IDialogService Dialogs
+@implements IDisposable
+
+@*
+    The only navigation below the tablet breakpoint (ported from artstore-fs). Every slot is one of two
+    primitives — Destination (a link) or Action (a button) — and only the current destination lights up.
+*@
+<nav class="mbn" aria-label="@L["Nav.Main"]">
+    <div class="mbn__bar">
+        @switch (Shell)
+        {
+            case AppShell.Console:
+                @Action(Icons.Material.Rounded.Menu, L["Nav.Menu"], () => OnMenu.InvokeAsync())
+                @Destination("/admin", Icons.Material.Outlined.SpaceDashboard, Icons.Material.Rounded.SpaceDashboard, L["Nav.DashboardShort"], exact: true)
+                @Destination("/admin/pedidos/quadro", Icons.Material.Outlined.ViewKanban, Icons.Material.Rounded.ViewKanban, L["Nav.OrderBoardShort"])
+                @Destination("/admin/rastreamento", Icons.Material.Outlined.Map, Icons.Material.Rounded.Map, L["Nav.LiveMapShort"])
+                break;
+
+            case AppShell.Driver:
+                @Destination("/motorista", Icons.Material.Outlined.LocalShipping, Icons.Material.Rounded.LocalShipping, L["Nav.MyDeliveriesShort"])
+                @Destination("/conta/senha", Icons.Material.Outlined.Password, Icons.Material.Rounded.Password, L["Nav.PasswordShort"])
+                @Action(Icons.Material.Outlined.Logout, L["Nav.SignOut"], ConfirmSignOutAsync, "mbn__item--apart")
+                break;
+
+            default:
+                @Destination("/", Icons.Material.Outlined.Storefront, Icons.Material.Rounded.Storefront, L["Nav.Store"], exact: true)
+                @Destination("/carrinho", Icons.Material.Outlined.ShoppingCart, Icons.Material.Rounded.ShoppingCart, L["Nav.Cart"], badge: CartCount > 0 ? Fmt.Quantity(CartCount) : null)
+                @if (User.IsSignedIn())
+                {
+                    @Destination("/meus-pedidos", Icons.Material.Outlined.ShoppingBag, Icons.Material.Rounded.ShoppingBag, L["Nav.MyOrdersShort"])
+                    @Destination("/minha-conta", Icons.Material.Outlined.Person, Icons.Material.Rounded.Person, L["Nav.AccountShort"])
+                }
+                else
+                {
+                    @Destination(LandingRoutes.Login, Icons.Material.Outlined.PersonOutline, Icons.Material.Rounded.Person, L["Nav.SignIn"], modifier: "mbn__item--apart")
+                }
+                break;
+        }
+    </div>
+</nav>
+
+@code {
+    [Parameter] public AppShell Shell { get; set; }
+    [Parameter] public ClaimsPrincipal User { get; set; } = new(new ClaimsIdentity());
+    [Parameter] public decimal CartCount { get; set; }
+    [Parameter] public EventCallback OnMenu { get; set; }
+    [Parameter] public EventCallback OnSignOut { get; set; }
+
+    private string _currentPath = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        _currentPath = CurrentPath();
+        Navigation.LocationChanged += OnLocationChanged;
+    }
+
+    /// <summary>A place to go: a real link, announced as the current page when it is.</summary>
+    private RenderFragment Destination(string href, string icon, string activeIcon, string label,
+        bool exact = false, string? badge = null, string? modifier = null)
+    {
+        var active = IsActive(href, exact);
+        return @<a href="@href" class="mbn__item @modifier @(active ? "mbn__item--active" : null)" aria-current="@(active ? "page" : null)">
+                    <span class="mbn__icon">
+                        <MudIcon Icon="@(active ? activeIcon : icon)" Size="Size.Medium" Color="Color.Inherit" />
+                        @if (badge is not null)
+                        {
+                            <span class="mbn__badge">@badge</span>
+                        }
+                    </span>
+                    <span class="mbn__label">@label</span>
+                </a>;
+    }
+
+    /// <summary>Something that happens here (menu, sign-out): a button, not an anchor without href.</summary>
+    private RenderFragment Action(string icon, string label, Func<Task> onClick, string? modifier = null) =>
+        @<button type="button" class="mbn__item @modifier" @onclick="@(_ => onClick())">
+            <span class="mbn__icon"><MudIcon Icon="@icon" Size="Size.Medium" Color="Color.Inherit" /></span>
+            <span class="mbn__label">@label</span>
+        </button>;
+
+    private bool IsActive(string href, bool exact)
+    {
+        var target = href.Trim('/');
+        return exact || target.Length == 0
+            ? string.Equals(_currentPath, target, StringComparison.OrdinalIgnoreCase)
+            : _currentPath.StartsWith(target, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string CurrentPath() => Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0].Trim('/');
+
+    /// <summary>The bar lives on shared phones: signing out asks first.</summary>
+    private async Task ConfirmSignOutAsync()
+    {
+        if (await Dialogs.ConfirmAsync(L["Nav.SignOut"], L["Nav.SignOutConfirm"], L["Nav.SignOut"], L["Common.Cancel"],
+                Color.Error, Icons.Material.Rounded.Logout))
+        {
+            await OnSignOut.InvokeAsync();
+        }
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        _currentPath = CurrentPath();
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose() => Navigation.LocationChanged -= OnLocationChanged;
+}

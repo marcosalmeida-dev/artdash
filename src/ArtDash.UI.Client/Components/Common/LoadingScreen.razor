@@ -1,0 +1,14 @@
+<div class="ad-loading @(Inline ? "ad-loading--inline" : null)" role="status" aria-live="polite">
+    <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="@(Inline ? Size.Small : Size.Medium)" />
+    @if (!string.IsNullOrWhiteSpace(Text))
+    {
+        <span>@Text</span>
+    }
+</div>
+
+@code {
+    [Parameter] public string? Text { get; set; }
+
+    /// <summary>A small spinner inside a card instead of a full-height block.</summary>
+    [Parameter] public bool Inline { get; set; }
+}

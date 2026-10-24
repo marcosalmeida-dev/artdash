@@ -1,0 +1,11 @@
+@* One chip for every status in the app; pair with StatusStyles for color and icon. *@
+<MudChip T="string" Color="@Color" Size="@Size" Variant="@Variant" Icon="@Icon" Class="@($"ad-status-chip {Class}")">@Text</MudChip>
+
+@code {
+    [Parameter, EditorRequired] public string Text { get; set; } = string.Empty;
+    [Parameter] public Color Color { get; set; } = Color.Default;
+    [Parameter] public string? Icon { get; set; }
+    [Parameter] public Size Size { get; set; } = Size.Small;
+    [Parameter] public Variant Variant { get; set; } = Variant.Text;
+    [Parameter] public string? Class { get; set; }
+}

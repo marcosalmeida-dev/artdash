@@ -1,0 +1,91 @@
+﻿@page "/pedidos/{Id:guid}/pagamento"
+@attribute [Authorize(Roles = AppRoles.Customer)]
+@implements IAsyncDisposable
+@inject MeApi Me
+@inject StoreState Store
+@inject AuthSession Session
+@inject RealtimeClient Realtime
+@inject UiActions Ui
+
+<div class="ad-page ad-page--narrow">
+    <PageHeader Title="@L["Payment.Title"]" Icon="@Icons.Material.Rounded.Payments"
+                Subtitle="@(_order is null ? null : L["Payment.OrderNumber", _order.Number].Value)" BackHref="/meus-pedidos" />
+
+    @if (_order is null)
+    {
+        <LoadingScreen />
+    }
+    else if (_order.PaymentStatus == PaymentStatus.Paid)
+    {
+        <EmptyState Icon="@Icons.Material.Rounded.TaskAlt" Title="@L["Payment.PaidTitle"]" Text="@L["Payment.PaidText"]" Class="ad-empty--success">
+            <MudButton Href="@($"/meus-pedidos/{_order.Id}")" Variant="Variant.Filled" Color="Color.Primary" DropShadow="false">@L["Payment.FollowOrder"]</MudButton>
+        </EmptyState>
+    }
+    else if (_order.Status == OrderStatus.Cancelled)
+    {
+        <EmptyState Icon="@Icons.Material.Rounded.Cancel" Title="@L["Payment.CancelledTitle"]" Text="@_order.CancellationReason" />
+    }
+    else if (!Store.Info.Payments.OnlinePaymentAvailable)
+    {
+        <EmptyState Icon="@Icons.Material.Rounded.CreditCardOff" Title="@L["Payment.UnavailableTitle"]" Text="@L["Payment.UnavailableText"]" />
+    }
+    else
+    {
+        <div class="ad-split">
+            <section class="ad-card">
+                <h2 class="ad-card__title">@L["Payment.ChooseMethod"]</h2>
+                <MercadoPagoBrick OrderId="_order.Id" Amount="_order.Outstanding" Options="Store.Info.Payments"
+                                  PayerEmail="@Session.User?.Email" OnResult="OnPaymentResultAsync" />
+            </section>
+            <aside class="ad-card ad-summary">
+                <h2 class="ad-card__title">@L["Cart.Summary"]</h2>
+                <OrderItemsSummary Order="_order" />
+            </aside>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private OrderDto? _order;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _order = await Ui.LoadAsync(() => Me.GetOrderAsync(Id));
+        if (_order is null)
+        {
+            return;
+        }
+
+        // The webhook may confirm the payment before the page's own polling does.
+        Realtime.OrderChanged += OnOrderChangedAsync;
+        await Realtime.TrackOrderAsync(_order.TrackingCode);
+    }
+
+    private async Task OnPaymentResultAsync(OnlinePaymentResultDto result)
+    {
+        if (result.OrderPaid || result.Status == TransactionStatus.Approved)
+        {
+            await ReloadAsync();
+        }
+    }
+
+    private Task OnOrderChangedAsync(OrderChangedMessage message) =>
+        message.OrderId == Id ? InvokeAsync(ReloadAsync) : Task.CompletedTask;
+
+    private async Task ReloadAsync()
+    {
+        _order = await Ui.LoadAsync(() => Me.GetOrderAsync(Id)) ?? _order;
+        StateHasChanged();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Realtime.OrderChanged -= OnOrderChangedAsync;
+        if (_order is not null)
+        {
+            await Realtime.StopTrackingAsync(_order.TrackingCode);
+        }
+    }
+}

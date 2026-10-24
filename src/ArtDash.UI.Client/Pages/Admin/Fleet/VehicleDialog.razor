@@ -1,0 +1,77 @@
+@inject FleetApi Fleet
+@inject UiActions Ui
+
+<MudDialog Class="ad-dialog">
+    <DialogContent>
+        <MudGrid Spacing="2">
+            <MudItem xs="12" sm="5">
+                <MudTextField T="string" Value="@_request.Plate" ValueChanged="OnPlateChanged" Label="@L["Vehicles.Plate"]"
+                              HelperText="@L["Vehicles.PlateHint"]" Variant="Variant.Outlined" Margin="Margin.Dense"
+                              Required="true" RequiredError="@L["Validation.Required"]" MaxLength="8" AutoFocus="true" />
+            </MudItem>
+            <MudItem xs="12" sm="7">
+                <MudSelect T="VehicleType" @bind-Value="_request.Type" Label="@L["Vehicles.Type"]" Variant="Variant.Outlined"
+                           Margin="Margin.Dense" ToStringFunc="@(t => L.Enum(t))">
+                    @foreach (var type in Enum.GetValues<VehicleType>())
+                    {
+                        <MudSelectItem T="VehicleType" Value="@type">
+                            <span class="ad-select-icon"><MudIcon Icon="@StatusStyles.Icon(type)" Size="Size.Small" /> @L.Enum(type)</span>
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="7">
+                <MudTextField T="string" @bind-Value="_request.Model" Label="@L["Vehicles.Model"]" Variant="Variant.Outlined"
+                              Margin="Margin.Dense" MaxLength="100" />
+            </MudItem>
+            <MudItem xs="12" sm="5">
+                <MudNumericField T="decimal?" @bind-Value="_request.CapacityKg" Label="@L["Vehicles.Capacity"]"
+                                 HelperText="@L["Vehicles.CapacityHint"]" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                 Min="0m" Format="N0" Culture="@Fmt.Culture" Adornment="Adornment.End" AdornmentText="kg" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField T="string" @bind-Value="_request.Notes" Label="@L["Vehicles.Notes"]" Variant="Variant.Outlined"
+                              Lines="2" MaxLength="500" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudSwitch T="bool" @bind-Value="_request.IsActive" Color="Color.Primary" Label="@L["Vehicles.ActiveLabel"]" />
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="@(() => MudDialog!.Cancel())">@L["Common.Cancel"]</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" DropShadow="false" Disabled="_saving" OnClick="SaveAsync"
+                   StartIcon="@Icons.Material.Rounded.Save">@L["Common.Save"]</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance? MudDialog { get; set; }
+
+    [Parameter] public VehicleDto? Vehicle { get; set; }
+
+    private SaveVehicleRequest _request = new();
+    private bool _saving;
+
+    protected override void OnInitialized() =>
+        _request = Vehicle is null ? new SaveVehicleRequest { Type = VehicleType.Van } : SaveVehicleRequest.From(Vehicle);
+
+    /// <summary>Upper case, letters and digits only: "abc-1d23" becomes "ABC1D23" (old and Mercosul plates).</summary>
+    private void OnPlateChanged(string? value) =>
+        _request.Plate = new string((value ?? string.Empty).Where(char.IsAsciiLetterOrDigit).Select(char.ToUpperInvariant).ToArray());
+
+    private async Task SaveAsync()
+    {
+        _saving = true;
+        var saved = Vehicle is null
+            ? await Ui.RunAsync(() => Fleet.CreateVehicleAsync(_request), L["Vehicles.Created"])
+            : await Ui.RunAsync(() => Fleet.UpdateVehicleAsync(Vehicle.Id, _request), L["Common.Saved"]);
+
+        if (saved)
+        {
+            MudDialog?.Close(DialogResult.Ok(true));
+        }
+
+        _saving = false;
+    }
+}

@@ -1,0 +1,11 @@
+@page "/nao-encontrado"
+@inject AuthSession Session
+
+<div class="ad-page ad-page--narrow">
+    <PageHeader Title="@L["NotFound.Title"]" />
+    <EmptyState Icon="@Icons.Material.Rounded.TravelExplore" Title="@L["NotFound.Title"]" Text="@L["NotFound.Text"]">
+        <MudButton Href="@LandingRoutes.For(Session.Principal)" Variant="Variant.Filled" Color="Color.Primary" DropShadow="false">
+            @L["Access.GoHome"]
+        </MudButton>
+    </EmptyState>
+</div>

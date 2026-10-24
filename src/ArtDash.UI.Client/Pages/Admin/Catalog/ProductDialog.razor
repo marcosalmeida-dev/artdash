@@ -1,0 +1,111 @@
+@inject CatalogApi Catalog
+@inject UiActions Ui
+
+@* Create / edit a product. Orders copy name and price when placed, so edits never rewrite past orders. *@
+<MudDialog Class="ad-dialog">
+    <DialogContent>
+        <MudGrid Spacing="2">
+            <MudItem xs="12" sm="8">
+                <MudTextField T="string" @bind-Value="_request.Name" Label="@L["Products.Name"]" Variant="Variant.Outlined"
+                              Margin="Margin.Dense" Required="true" RequiredError="@L["Validation.Required"]" MaxLength="150" AutoFocus="true" />
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudTextField T="string" @bind-Value="_request.Sku" Label="@L["Products.Sku"]" Variant="Variant.Outlined"
+                              Margin="Margin.Dense" MaxLength="50" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudSelect T="Guid?" @bind-Value="_request.CategoryId" Label="@L["Products.Category"]" Variant="Variant.Outlined"
+                           Margin="Margin.Dense" Required="true" RequiredError="@L["Validation.Required"]" ToStringFunc="CategoryName">
+                    @foreach (var category in Categories)
+                    {
+                        <MudSelectItem T="Guid?" Value="@((Guid?)category.Id)">@category.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudSelect T="UnitOfMeasure" @bind-Value="_request.Unit" Label="@L["Products.Unit"]" Variant="Variant.Outlined"
+                           Margin="Margin.Dense" ToStringFunc="UnitName">
+                    @foreach (var unit in Enum.GetValues<UnitOfMeasure>())
+                    {
+                        <MudSelectItem T="UnitOfMeasure" Value="@unit">@UnitName(unit)</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudNumericField T="decimal" @bind-Value="_request.Price" Label="@L["Products.Price"]" Variant="Variant.Outlined"
+                                 Margin="Margin.Dense" Min="0m" Format="N2" Culture="@Fmt.Culture"
+                                 Adornment="Adornment.Start" AdornmentText="R$" />
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudNumericField T="decimal?" @bind-Value="_request.CompareAtPrice" Label="@L["Products.CompareAtPrice"]"
+                                 HelperText="@L["Products.CompareAtHint"]" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                 Min="0m" Format="N2" Culture="@Fmt.Culture" Adornment="Adornment.Start" AdornmentText="R$" />
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudNumericField T="decimal?" @bind-Value="_request.WeightKg" Label="@L["Products.Weight"]"
+                                 HelperText="@L["Products.WeightHint"]" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                 Min="0m" Format="0.###" Culture="@Fmt.Culture" Adornment="Adornment.End" AdornmentText="kg" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField T="string" @bind-Value="_request.Description" Label="@L["Products.Description"]" Variant="Variant.Outlined"
+                              Lines="3" MaxLength="2000" />
+            </MudItem>
+            <MudItem xs="12" md="7">
+                <ImageUploadField @bind-Url="_request.ImageUrl" Upload="@Catalog.UploadProductImageAsync"
+                                  Label="@L["Products.Image"]" HelperText="@L["Products.ImageHint"]" Square="true" />
+            </MudItem>
+            <MudItem xs="12" md="5">
+                <div class="ad-switches">
+                    <MudSwitch T="bool" @bind-Value="_request.IsActive" Color="Color.Primary" Label="@L["Products.ActiveLabel"]" />
+                    <MudSwitch T="bool" @bind-Value="_request.IsFeatured" Color="Color.Warning" Label="@L["Products.FeaturedLabel"]" />
+                    <MudNumericField T="int" @bind-Value="_request.SortOrder" Label="@L["Common.SortOrder"]" HelperText="@L["Common.SortOrderHint"]"
+                                     Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+                </div>
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="@(() => MudDialog!.Cancel())">@L["Common.Cancel"]</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" DropShadow="false" Disabled="_saving" OnClick="SaveAsync"
+                   StartIcon="@Icons.Material.Rounded.Save">@L["Common.Save"]</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance? MudDialog { get; set; }
+
+    /// <summary>The product being edited; null creates a new one.</summary>
+    [Parameter] public ProductDto? Product { get; set; }
+
+    [Parameter] public IReadOnlyList<CategoryDto> Categories { get; set; } = [];
+
+    private SaveProductRequest _request = new();
+    private bool _saving;
+
+    protected override void OnInitialized()
+    {
+        _request = Product is null
+            ? new SaveProductRequest { CategoryId = Categories.FirstOrDefault(c => c.IsActive)?.Id }
+            : SaveProductRequest.From(Product);
+    }
+
+    private string CategoryName(Guid? id) => Categories.FirstOrDefault(c => c.Id == id)?.Name ?? string.Empty;
+
+    /// <summary>"Pacote (pct)": the long name, with the abbreviation used on orders and the storefront.</summary>
+    private string UnitName(UnitOfMeasure unit) => L[$"Units.{unit}"];
+
+    private async Task SaveAsync()
+    {
+        _saving = true;
+        var saved = Product is null
+            ? await Ui.RunAsync(() => Catalog.CreateProductAsync(_request), L["Products.Created"])
+            : await Ui.RunAsync(() => Catalog.UpdateProductAsync(Product.Id, _request), L["Common.Saved"]);
+
+        if (saved)
+        {
+            MudDialog?.Close(DialogResult.Ok(true));
+        }
+
+        _saving = false;
+    }
+}

@@ -1,0 +1,10 @@
+global using System.Globalization;
+global using System.Security.Claims;
+global using ArtDash.Shared.Constants;
+global using ArtDash.Shared.Contracts.Common;
+global using ArtDash.Shared.Enums;
+global using ArtDash.UI.Client.Resources;
+global using Microsoft.AspNetCore.Components;
+global using Microsoft.Extensions.Localization;
+global using Microsoft.JSInterop;
+global using MudBlazor;

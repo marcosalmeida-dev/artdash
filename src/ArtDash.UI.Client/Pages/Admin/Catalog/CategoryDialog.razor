@@ -1,0 +1,69 @@
+@inject CatalogApi Catalog
+@inject UiActions Ui
+
+<MudDialog Class="ad-dialog">
+    <DialogContent>
+        <MudGrid Spacing="2">
+            <MudItem xs="12">
+                <MudTextField T="string" @bind-Value="_request.Name" Label="@L["Categories.Name"]" Variant="Variant.Outlined"
+                              Margin="Margin.Dense" Required="true" RequiredError="@L["Validation.Required"]" MaxLength="100" AutoFocus="true" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField T="string" @bind-Value="_request.Description" Label="@L["Categories.Description"]" Variant="Variant.Outlined"
+                              Lines="2" MaxLength="500" />
+            </MudItem>
+            <MudItem xs="6">
+                <MudNumericField T="int" @bind-Value="_request.SortOrder" Label="@L["Common.SortOrder"]" HelperText="@L["Common.SortOrderHint"]"
+                                 Variant="Variant.Outlined" Margin="Margin.Dense" Min="0" />
+            </MudItem>
+            <MudItem xs="6" Class="d-flex align-center">
+                <MudSwitch T="bool" @bind-Value="_request.IsActive" Color="Color.Primary" Label="@L["Categories.Visible"]" />
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="@(() => MudDialog!.Cancel())">@L["Common.Cancel"]</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" DropShadow="false" Disabled="_saving" OnClick="SaveAsync"
+                   StartIcon="@Icons.Material.Rounded.Save">@L["Common.Save"]</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance? MudDialog { get; set; }
+
+    [Parameter] public CategoryDto? Category { get; set; }
+
+    /// <summary>Suggested position for a new category (after the existing ones).</summary>
+    [Parameter] public int NextSortOrder { get; set; } = 1;
+
+    private SaveCategoryRequest _request = new();
+    private bool _saving;
+
+    protected override void OnInitialized()
+    {
+        _request = Category is null
+            ? new SaveCategoryRequest { SortOrder = NextSortOrder }
+            : new SaveCategoryRequest
+            {
+                Name = Category.Name,
+                Description = Category.Description,
+                SortOrder = Category.SortOrder,
+                IsActive = Category.IsActive
+            };
+    }
+
+    private async Task SaveAsync()
+    {
+        _saving = true;
+        var saved = Category is null
+            ? await Ui.RunAsync(() => Catalog.CreateCategoryAsync(_request), L["Categories.Created"])
+            : await Ui.RunAsync(() => Catalog.UpdateCategoryAsync(Category.Id, _request), L["Common.Saved"]);
+
+        if (saved)
+        {
+            MudDialog?.Close(DialogResult.Ok(true));
+        }
+
+        _saving = false;
+    }
+}

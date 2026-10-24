@@ -1,0 +1,97 @@
+.tr-hero {
+    color: var(--ad-console-text, #fff);
+    background:
+        radial-gradient(120% 160% at 100% 0%, rgba(var(--ad-primary-rgb), .5) 0%, rgba(var(--ad-primary-rgb), 0) 60%),
+        linear-gradient(135deg, var(--ad-console) 0%, var(--ad-console-2) 100%);
+    padding: calc(26px + env(safe-area-inset-top, 0px)) 16px 22px;
+}
+
+.tr-hero__inner {
+    max-width: 760px;
+    margin-inline: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.tr-hero__store {
+    font-size: .68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .14em;
+    opacity: .78;
+}
+
+.tr-hero__title {
+    margin: 0;
+    font-size: clamp(1.4rem, 4vw, 2rem);
+    font-weight: 800;
+}
+
+.tr-hero__status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.tr-live {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: .78rem;
+    font-weight: 700;
+    opacity: .9;
+}
+
+.tr-live__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #4ade80;
+    box-shadow: 0 0 0 0 rgba(74, 222, 128, .7);
+    animation: tr-pulse 1.8s infinite;
+}
+
+@keyframes tr-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, .6); }
+    70% { box-shadow: 0 0 0 9px rgba(74, 222, 128, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+}
+
+.tr-body {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding-top: 16px;
+    padding-bottom: 96px;
+}
+
+.tr-eta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 14px 0 0;
+    font-weight: 700;
+    color: var(--mud-palette-primary);
+}
+
+.tr-driver {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 12px 16px;
+    border-top: 1px solid var(--mud-palette-lines-default);
+}
+
+.tr-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tr-live__dot { animation: none; }
+}

@@ -1,0 +1,76 @@
+@page "/meus-pedidos"
+@attribute [Authorize(Roles = AppRoles.Customer)]
+@inject MeApi Me
+@inject StoreState Store
+@inject UiActions Ui
+
+<div class="ad-page ad-page--narrow">
+    <PageHeader Title="@L["MyOrders.Title"]" Icon="@Icons.Material.Rounded.ShoppingBag">
+        <MudButton Href="/" Variant="Variant.Filled" Color="Color.Primary" DropShadow="false" StartIcon="@Icons.Material.Rounded.Add">
+            @L["MyOrders.NewOrder"]
+        </MudButton>
+    </PageHeader>
+
+    @if (_page is null)
+    {
+        <LoadingScreen />
+    }
+    else if (_page.TotalCount == 0)
+    {
+        <EmptyState Icon="@Icons.Material.Rounded.ShoppingBag" Title="@L["MyOrders.Empty"]" Text="@L["MyOrders.EmptyHint"]">
+            <MudButton Href="/" Variant="Variant.Filled" Color="Color.Primary" DropShadow="false">@L["Cart.BrowseProducts"]</MudButton>
+        </EmptyState>
+    }
+    else
+    {
+        <div class="ad-list">
+            @foreach (var order in _page.Items)
+            {
+                <a class="ad-list-card" href="@($"/meus-pedidos/{order.Id}")">
+                    <span class="ad-list-card__icon ad-tone--@StatusStyles.For(order.Status).ToString().ToLowerInvariant()">
+                        <MudIcon Icon="@StatusStyles.Icon(order.Status)" />
+                    </span>
+                    <span class="ad-list-card__body">
+                        <span class="ad-list-card__title">@L["MyOrders.OrderNumber", order.Number]</span>
+                        <span class="ad-list-card__meta">
+                            @Fmt.DateAndTime(Store.ToLocal(order.PlacedAt)) · @L["MyOrders.Items", order.ItemsCount]
+                        </span>
+                        <span class="ad-list-card__chips">
+                            <StatusChip Text="@L.Enum(order.Status)" Color="@StatusStyles.For(order.Status)" />
+                            <StatusChip Text="@L.Enum(order.PaymentStatus)" Color="@StatusStyles.For(order.PaymentStatus)" Variant="Variant.Outlined" />
+                        </span>
+                    </span>
+                    <span class="ad-list-card__side">
+                        <strong>@Fmt.Money(order.Total)</strong>
+                        <MudIcon Icon="@Icons.Material.Rounded.ChevronRight" />
+                    </span>
+                </a>
+            }
+        </div>
+
+        @if (_page.TotalPages > 1)
+        {
+            <div class="ad-pager">
+                <MudPagination Count="_page.TotalPages" Selected="_pageNumber" SelectedChanged="ChangePageAsync" Color="Color.Primary" />
+            </div>
+        }
+    }
+</div>
+
+@code {
+    private const int PageSize = 10;
+
+    private PagedResult<OrderListItemDto>? _page;
+    private int _pageNumber = 1;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task ChangePageAsync(int page)
+    {
+        _pageNumber = page;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync() =>
+        _page = await Ui.LoadAsync(() => Me.GetOrdersAsync(_pageNumber, PageSize)) ?? PagedResult<OrderListItemDto>.Empty();
+}

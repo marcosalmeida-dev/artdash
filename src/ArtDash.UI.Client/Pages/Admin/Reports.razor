@@ -1,0 +1,296 @@
+﻿@page "/admin/relatorios"
+@attribute [Authorize(Roles = AppRoles.Staff)]
+@inject ReportsApi Api
+@inject StoreState Store
+@inject UiActions Ui
+@inject BrowserUtil Browser
+@inject TimeProvider Clock
+
+<div class="ad-page ad-reports" aria-busy="@_loading.ToString().ToLowerInvariant()">
+    <PageHeader Title="@L["Reports.Title"]" Subtitle="@L["Reports.Subtitle"]" Icon="@Icons.Material.Rounded.Assessment">
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Rounded.FileDownload"
+                   Disabled="@(_data is null || _loading || _exporting || _loadFailed || HasUnappliedFilters)" OnClick="ExportAsync">
+            @L["Reports.Export"]
+        </MudButton>
+    </PageHeader>
+
+    <section class="ad-card ad-reports__filters">
+        <div class="ad-reports__presets" role="group" aria-label="@L["Reports.Period"]">
+            @foreach (var preset in Presets)
+            {
+                <MudButton Size="Size.Small" Variant="@(_preset == preset ? Variant.Filled : Variant.Text)" Color="Color.Primary"
+                           DropShadow="false" Disabled="_loading" OnClick="@(() => SetPresetAsync(preset))">
+                    @L[$"Reports.{preset}"]
+                </MudButton>
+            }
+        </div>
+        <MudGrid Spacing="2" Class="align-center">
+            <MudItem xs="12" sm="6" md="3">
+                <MudDatePicker @bind-Date="_from" @bind-Date:after="UseCustomRange" Label="@L["Reports.From"]"
+                               Variant="Variant.Outlined" Margin="Margin.Dense" Culture="@Fmt.Culture" DateFormat="dd/MM/yyyy" Disabled="_loading" />
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudDatePicker @bind-Date="_to" @bind-Date:after="UseCustomRange" Label="@L["Reports.To"]"
+                               Variant="Variant.Outlined" Margin="Margin.Dense" Culture="@Fmt.Culture" DateFormat="dd/MM/yyyy" Disabled="_loading" />
+            </MudItem>
+            <MudItem xs="12" sm="8" md="4">
+                <MudSelect T="OrderChannel?" @bind-Value="_channel" Label="@L["Reports.Channel"]"
+                           Variant="Variant.Outlined" Margin="Margin.Dense" Disabled="_loading">
+                    <MudSelectItem T="OrderChannel?" Value="@((OrderChannel?)null)">@L["Reports.AllChannels"]</MudSelectItem>
+                    @foreach (var channel in Enum.GetValues<OrderChannel>())
+                    {
+                        <MudSelectItem T="OrderChannel?" Value="@((OrderChannel?)channel)">@L.Enum(channel)</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="4" md="2">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" DropShadow="false" FullWidth="true"
+                           StartIcon="@Icons.Material.Rounded.FilterAlt" Disabled="_loading" OnClick="ApplyAsync">@L["Reports.Apply"]</MudButton>
+            </MudItem>
+        </MudGrid>
+        @if (HasUnappliedFilters)
+        {
+            <p class="ad-muted ad-small mt-2" role="status">@L["Reports.FiltersChanged"]</p>
+        }
+    </section>
+
+    @if (_loading)
+    {
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mt-2" aria-label="@L["Reports.Loading"]" />
+    }
+    @if (_loadFailed)
+    {
+        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="mt-4">
+            @L["Reports.LoadingFailed"]
+            <MudButton Size="Size.Small" Color="Color.Primary" OnClick="RetryAsync" Disabled="_loading">@L["Reports.Retry"]</MudButton>
+        </MudAlert>
+    }
+    @if (_data is { } data)
+    {
+        <div class="ad-reports__metadata" aria-live="polite">
+            <span><strong>@Fmt.Date(data.From) – @Fmt.Date(data.To)</strong> · @ChannelLabel(_appliedChannel)</span>
+            <span>@L["Reports.GeneratedAt"]: @Fmt.DateAndTime(Store.ToLocal(data.GeneratedAt))</span>
+        </div>
+
+        <div class="ad-stats">
+            <StatCard Label="@L["Reports.Revenue"]" Value="@Fmt.Money(data.Summary.Revenue)" Icon="@Icons.Material.Rounded.TrendingUp" Color="Color.Success" />
+            <StatCard Label="@L["Reports.ValidOrders"]" Value="@Fmt.Number(data.Summary.ValidOrders, 0)" Icon="@Icons.Material.Rounded.ReceiptLong"
+                      Hint="@L["Reports.TotalOrdersHint", data.Summary.Orders]" />
+            <StatCard Label="@L["Reports.AverageTicket"]" Value="@Fmt.Money(data.Summary.AverageTicket)" Icon="@Icons.Material.Rounded.ShoppingBag" Color="Color.Secondary" />
+            <StatCard Label="@L["Reports.ActiveCustomers"]" Value="@Fmt.Number(data.Summary.ActiveCustomers, 0)" Icon="@Icons.Material.Rounded.Groups" Color="Color.Info" />
+        </div>
+
+        <p class="ad-muted ad-small mt-3">@L["Reports.Semantics"]</p>
+
+        <MudTabs Elevation="0" Rounded="true" Color="Color.Primary" Class="ad-reports__tabs mt-4" KeepPanelsAlive="false">
+            <MudTabPanel Text="@L["Reports.Overview"]" Icon="@Icons.Material.Rounded.Insights">
+                <div class="ad-grid-2 mt-4">
+                    <section class="ad-card">
+                        <div class="ad-card__head">
+                            <h2 class="ad-card__title">@L["Reports.DailySales"]</h2>
+                            <span class="ad-muted ad-small">@L[ChartGroupingKey]</span>
+                        </div>
+                        @if (data.Summary.ValidOrders == 0)
+                        {
+                            <EmptyState Icon="@Icons.Material.Rounded.BarChart" Title="@L["Reports.Empty"]" Text="@L["Reports.EmptyHint"]" Class="ad-empty--compact" />
+                        }
+                        else
+                        {
+                            <div class="ad-reports__chart-scroll" tabindex="0" role="region" aria-label="@L["Reports.DailySales"]">
+                                <div class="ad-reports__chart">
+                                    @for (var index = 0; index < ChartPoints.Count; index++)
+                                    {
+                                        var point = ChartPoints[index];
+                                        <div class="ad-reports__bar-col" title="@ChartTitle(point)">
+                                            <span class="ad-reports__bar-track">
+                                                <span class="ad-reports__bar" style="@BarStyle(point.Revenue)" role="img" aria-label="@ChartTitle(point)"></span>
+                                            </span>
+                                            <span class="ad-reports__bar-label">@(index % ChartLabelStep == 0 ? point.Label : "\u00a0")</span>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                        <p class="ad-muted ad-small mt-3">@L["Reports.ChartHint"]</p>
+                    </section>
+                    <section class="ad-card">
+                        <h2 class="ad-card__title">@L["Reports.OrdersByStatus"]</h2>
+                        <div class="ad-stack ad-stack--tight">
+                            @if (data.OrdersByStatus.Count == 0)
+                            {
+                                <EmptyState Title="@L["Reports.NoOrders"]" Class="ad-empty--compact" />
+                            }
+                            @foreach (var row in data.OrdersByStatus)
+                            {
+                                <div class="ad-reports__distribution">
+                                    <div class="ad-reports__distribution-head">
+                                        <StatusChip Text="@L.Enum(row.Status)" Color="@StatusStyles.For(row.Status)" />
+                                        <strong>@row.Orders <span class="ad-muted ad-small">· @Percent(row.Orders, data.Summary.Orders)</span></strong>
+                                    </div>
+                                    <MudProgressLinear Value="@Ratio(row.Orders, data.Summary.Orders)" Color="@StatusStyles.For(row.Status)" Rounded="true" aria-label="@L.Enum(row.Status)" />
+                                </div>
+                            }
+                        </div>
+                    </section>
+                </div>
+                <div class="ad-stats mt-4">
+                    <StatCard Label="@L["Reports.CancelRate"]" Value="@Percent(data.Summary.CancelledOrders, data.Summary.Orders)"
+                              Hint="@L["Reports.CancelledOrdersHint", data.Summary.CancelledOrders]" Icon="@Icons.Material.Rounded.Cancel" Color="Color.Error" />
+                    <StatCard Label="@L["Reports.OutstandingAmount"]" Value="@Fmt.Money(data.Summary.OutstandingAmount)" Icon="@Icons.Material.Rounded.AccountBalanceWallet" Color="Color.Warning" />
+                    <StatCard Label="@L["Reports.OverdueAmount"]" Value="@Fmt.Money(data.Summary.OverdueAmount)"
+                              Hint="@L["Reports.OverdueHint", data.Summary.OverdueCount]" Icon="@Icons.Material.Rounded.EventBusy" Color="Color.Error" />
+                    <StatCard Label="@L["Reports.DeliverySuccess"]" Value="@Percent(data.Deliveries.DeliveredStops, data.Deliveries.DeliveredStops + data.Deliveries.FailedStops)"
+                              Hint="@L["Reports.DeliverySuccessHint"]" Icon="@Icons.Material.Rounded.LocalShipping" Color="Color.Info" />
+                </div>
+            </MudTabPanel>
+
+            <MudTabPanel Text="@L["Reports.Orders"]" Icon="@Icons.Material.Rounded.ReceiptLong">
+                <section class="ad-card ad-card--flush mt-4">
+                    <h2 class="ad-card__title ad-card__title--pad">@L["Reports.OrdersByChannel"]</h2>
+                    <MudTable T="ReportChannelDto" Items="data.OrdersByChannel" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.Sm">
+                        <HeaderContent>
+                            <MudTh>@L["Reports.Channel"]</MudTh><MudTh>@L["Reports.Orders"]</MudTh><MudTh>@L["Reports.Revenue"]</MudTh><MudTh>@L["Reports.Share"]</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="@L["Reports.Channel"]">@L.Enum(context.Channel)</MudTd>
+                            <MudTd DataLabel="@L["Reports.Orders"]">@context.Orders</MudTd>
+                            <MudTd DataLabel="@L["Reports.Revenue"]">@Fmt.Money(context.Revenue)</MudTd>
+                            <MudTd DataLabel="@L["Reports.Share"]">@Percent(context.Revenue, data.Summary.Revenue)</MudTd>
+                        </RowTemplate>
+                        <NoRecordsContent><EmptyState Title="@L["Reports.Empty"]" Class="ad-empty--compact" /></NoRecordsContent>
+                    </MudTable>
+                </section>
+                <section class="ad-card ad-card--flush mt-4">
+                    <h2 class="ad-card__title ad-card__title--pad">@L["Reports.DailySales"]</h2>
+                    <MudTable T="ReportDailySalesDto" Items="data.DailySales" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.Sm" RowsPerPage="10">
+                        <HeaderContent>
+                            <MudTh>@L["Orders.PlacedAt"]</MudTh><MudTh>@L["Reports.ValidOrders"]</MudTh><MudTh>@L["Reports.Revenue"]</MudTh><MudTh>@L["Reports.AverageTicket"]</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="@L["Orders.PlacedAt"]">@Fmt.Date(context.Date)</MudTd>
+                            <MudTd DataLabel="@L["Reports.ValidOrders"]">@context.Orders</MudTd>
+                            <MudTd DataLabel="@L["Reports.Revenue"]"><strong>@Fmt.Money(context.Revenue)</strong></MudTd>
+                            <MudTd DataLabel="@L["Reports.AverageTicket"]">@Fmt.Money(context.Orders == 0 ? 0 : context.Revenue / context.Orders)</MudTd>
+                        </RowTemplate>
+                        <PagerContent><MudTablePager RowsPerPageString="@L["Reports.RowsPerPage"]" InfoFormat="@L["Reports.PageInfo"]" /></PagerContent>
+                    </MudTable>
+                </section>
+            </MudTabPanel>
+
+            <MudTabPanel Text="@L["Reports.Customers"]" Icon="@Icons.Material.Rounded.Groups">
+                <div class="ad-stats ad-stats--3 mt-4">
+                    <StatCard Label="@L["Reports.ActiveCustomers"]" Value="@data.Summary.ActiveCustomers.ToString()" Icon="@Icons.Material.Rounded.Groups" />
+                    <StatCard Label="@L["Reports.NewCustomers"]" Value="@data.Summary.NewCustomers.ToString()" Icon="@Icons.Material.Rounded.PersonAdd" Color="Color.Success" />
+                    <StatCard Label="@L["Reports.ReturningCustomers"]" Value="@data.Summary.ReturningCustomers.ToString()" Icon="@Icons.Material.Rounded.Replay" Color="Color.Secondary" />
+                </div>
+                <p class="ad-muted ad-small mt-3">@L["Reports.CustomerHint"]</p>
+                <section class="ad-card ad-card--flush mt-4">
+                    <h2 class="ad-card__title ad-card__title--pad">@L["Reports.TopCustomers"]</h2>
+                    <p class="ad-reports__table-hint">@L["Reports.TopCustomersHint"]</p>
+                    <MudTable T="ReportTopCustomerDto" Items="data.TopCustomers" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.Sm">
+                        <HeaderContent>
+                            <MudTh>@L["Orders.Customer"]</MudTh><MudTh>@L["Reports.Orders"]</MudTh><MudTh>@L["Reports.Revenue"]</MudTh><MudTh>@L["Reports.AverageTicket"]</MudTh><MudTh>@L["Reports.LastOrder"]</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="@L["Orders.Customer"]"><strong>@context.Name</strong><span class="ad-reports__secondary">@(context.Type is { } type ? L.Enum(type) : "—")</span></MudTd>
+                            <MudTd DataLabel="@L["Reports.Orders"]">@context.Orders</MudTd>
+                            <MudTd DataLabel="@L["Reports.Revenue"]"><strong>@Fmt.Money(context.Revenue)</strong></MudTd>
+                            <MudTd DataLabel="@L["Reports.AverageTicket"]">@Fmt.Money(context.AverageTicket)</MudTd>
+                            <MudTd DataLabel="@L["Reports.LastOrder"]">@Fmt.Date(Store.ToLocal(context.LastOrderAt))</MudTd>
+                        </RowTemplate>
+                        <NoRecordsContent><EmptyState Title="@L["Reports.Empty"]" Text="@L["Reports.EmptyHint"]" Class="ad-empty--compact" /></NoRecordsContent>
+                    </MudTable>
+                </section>
+            </MudTabPanel>
+
+            <MudTabPanel Text="@L["Reports.Products"]" Icon="@Icons.Material.Rounded.Inventory2">
+                <section class="ad-card ad-card--flush mt-4">
+                    <h2 class="ad-card__title ad-card__title--pad">@L["Reports.TopProducts"]</h2>
+                    <p class="ad-reports__table-hint">@L["Reports.TopProductsHint"]</p>
+                    <MudTable T="ReportTopProductDto" Items="data.TopProducts" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.Sm">
+                        <HeaderContent>
+                            <MudTh>@L["Reports.Products"]</MudTh><MudTh>@L["Reports.Quantity"]</MudTh><MudTh>@L["Reports.Orders"]</MudTh><MudTh>@L["Reports.GrossRevenue"]</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="@L["Reports.Products"]"><strong>@context.Name</strong></MudTd>
+                            <MudTd DataLabel="@L["Reports.Quantity"]">@Fmt.Quantity(context.Quantity) @L.Enum(context.Unit)</MudTd>
+                            <MudTd DataLabel="@L["Reports.Orders"]">@context.Orders</MudTd>
+                            <MudTd DataLabel="@L["Reports.GrossRevenue"]"><strong>@Fmt.Money(context.Revenue)</strong></MudTd>
+                        </RowTemplate>
+                        <NoRecordsContent><EmptyState Icon="@Icons.Material.Rounded.Inventory2" Title="@L["Reports.Empty"]" Text="@L["Reports.EmptyHint"]" Class="ad-empty--compact" /></NoRecordsContent>
+                    </MudTable>
+                </section>
+            </MudTabPanel>
+
+            <MudTabPanel Text="@L["Reports.Financial"]" Icon="@Icons.Material.Rounded.AccountBalanceWallet">
+                <div class="ad-stats mt-4">
+                    <StatCard Label="@L["Reports.AmountPaid"]" Value="@Fmt.Money(data.Summary.AmountPaid)" Icon="@Icons.Material.Rounded.Payments" Color="Color.Success" />
+                    <StatCard Label="@L["Reports.OutstandingAmount"]" Value="@Fmt.Money(data.Summary.OutstandingAmount)" Icon="@Icons.Material.Rounded.AccountBalanceWallet" Color="Color.Warning" />
+                    <StatCard Label="@L["Reports.OverdueAmount"]" Value="@Fmt.Money(data.Summary.OverdueAmount)" Icon="@Icons.Material.Rounded.EventBusy" Color="Color.Error" />
+                    <StatCard Label="@L["Reports.OverdueCount"]" Value="@data.Summary.OverdueCount.ToString()" Icon="@Icons.Material.Rounded.RequestQuote" Color="Color.Error" />
+                </div>
+                <p class="ad-muted ad-small mt-3">@L["Reports.FinancialHint"]</p>
+                <section class="ad-card ad-card--flush mt-4">
+                    <h2 class="ad-card__title ad-card__title--pad">@L["Reports.PaymentsByTiming"]</h2>
+                    <MudTable T="ReportPaymentTimingDto" Items="data.PaymentsByTiming" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.Sm">
+                        <HeaderContent><MudTh>@L["Checkout.Payment"]</MudTh><MudTh>@L["Reports.Orders"]</MudTh><MudTh>@L["Reports.Revenue"]</MudTh><MudTh>@L["Reports.AmountPaid"]</MudTh><MudTh>@L["Reports.OutstandingAmount"]</MudTh></HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="@L["Checkout.Payment"]">@L.Enum(context.Timing)</MudTd>
+                            <MudTd DataLabel="@L["Reports.Orders"]">@context.Orders</MudTd>
+                            <MudTd DataLabel="@L["Reports.Revenue"]">@Fmt.Money(context.Revenue)</MudTd>
+                            <MudTd DataLabel="@L["Reports.AmountPaid"]">@Fmt.Money(context.AmountPaid)</MudTd>
+                            <MudTd DataLabel="@L["Reports.OutstandingAmount"]"><strong>@Fmt.Money(context.OutstandingAmount)</strong></MudTd>
+                        </RowTemplate>
+                        <NoRecordsContent><EmptyState Title="@L["Reports.NoOrders"]" Class="ad-empty--compact" /></NoRecordsContent>
+                    </MudTable>
+                </section>
+                <section class="ad-card ad-card--flush mt-4">
+                    <h2 class="ad-card__title ad-card__title--pad">@L["Reports.PaymentsByStatus"]</h2>
+                    <MudTable T="ReportPaymentStatusDto" Items="data.PaymentsByStatus" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.Sm">
+                        <HeaderContent><MudTh>@L["Orders.Payment"]</MudTh><MudTh>@L["Reports.Orders"]</MudTh><MudTh>@L["Reports.Revenue"]</MudTh><MudTh>@L["Reports.AmountPaid"]</MudTh><MudTh>@L["Reports.OutstandingAmount"]</MudTh></HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="@L["Orders.Payment"]"><StatusChip Text="@L.Enum(context.Status)" Color="@StatusStyles.For(context.Status)" /></MudTd>
+                            <MudTd DataLabel="@L["Reports.Orders"]">@context.Orders</MudTd>
+                            <MudTd DataLabel="@L["Reports.Revenue"]">@Fmt.Money(context.Revenue)</MudTd>
+                            <MudTd DataLabel="@L["Reports.AmountPaid"]">@Fmt.Money(context.AmountPaid)</MudTd>
+                            <MudTd DataLabel="@L["Reports.OutstandingAmount"]"><strong>@Fmt.Money(context.OutstandingAmount)</strong></MudTd>
+                        </RowTemplate>
+                        <NoRecordsContent><EmptyState Title="@L["Reports.NoOrders"]" Class="ad-empty--compact" /></NoRecordsContent>
+                    </MudTable>
+                </section>
+            </MudTabPanel>
+
+            <MudTabPanel Text="@L["Reports.Deliveries"]" Icon="@Icons.Material.Rounded.LocalShipping">
+                <div class="ad-stats mt-4">
+                    <StatCard Label="@L["Reports.Runs"]" Value="@data.Deliveries.Runs.ToString()" Icon="@Icons.Material.Rounded.Route" />
+                    <StatCard Label="@L["Reports.DeliveredStops"]" Value="@data.Deliveries.DeliveredStops.ToString()" Icon="@Icons.Material.Rounded.TaskAlt" Color="Color.Success" />
+                    <StatCard Label="@L["Reports.FailedStops"]" Value="@data.Deliveries.FailedStops.ToString()" Icon="@Icons.Material.Rounded.ErrorOutline" Color="Color.Error" />
+                    <StatCard Label="@L["Reports.PendingStops"]" Value="@data.Deliveries.PendingStops.ToString()" Icon="@Icons.Material.Rounded.PendingActions" Color="Color.Warning" />
+                </div>
+                <p class="ad-muted ad-small mt-3">@L["Reports.DeliveriesHint"]</p>
+                <div class="ad-reports__run-status mt-3">
+                    <StatusChip Text="@L["Reports.PlannedRuns", data.Deliveries.Planned]" Color="Color.Default" />
+                    <StatusChip Text="@L["Reports.InProgressRuns", data.Deliveries.InProgress]" Color="Color.Info" />
+                    <StatusChip Text="@L["Reports.CompletedRuns", data.Deliveries.Completed]" Color="Color.Success" />
+                    <StatusChip Text="@L["Reports.CancelledRuns", data.Deliveries.Cancelled]" Color="Color.Error" />
+                </div>
+                <section class="ad-card ad-card--flush mt-4">
+                    <h2 class="ad-card__title ad-card__title--pad">@L["Reports.Drivers"]</h2>
+                    <MudTable T="ReportDriverDto" Items="data.Drivers" Dense="true" Hover="true" Elevation="0" Breakpoint="Breakpoint.Sm" RowsPerPage="10">
+                        <HeaderContent><MudTh>@L["Deliveries.Driver"]</MudTh><MudTh>@L["Reports.Runs"]</MudTh><MudTh>@L["Reports.DeliveredStops"]</MudTh><MudTh>@L["Reports.FailedStops"]</MudTh><MudTh>@L["Reports.PendingStops"]</MudTh><MudTh>@L["Reports.DeliverySuccess"]</MudTh></HeaderContent>
+                        <RowTemplate>
+                            <MudTd DataLabel="@L["Deliveries.Driver"]"><strong>@context.DriverName</strong></MudTd>
+                            <MudTd DataLabel="@L["Reports.Runs"]">@context.Runs</MudTd>
+                            <MudTd DataLabel="@L["Reports.DeliveredStops"]">@context.DeliveredStops</MudTd>
+                            <MudTd DataLabel="@L["Reports.FailedStops"]">@context.FailedStops</MudTd>
+                            <MudTd DataLabel="@L["Reports.PendingStops"]">@context.PendingStops</MudTd>
+                            <MudTd DataLabel="@L["Reports.DeliverySuccess"]">@Percent(context.DeliveredStops, context.DeliveredStops + context.FailedStops)</MudTd>
+                        </RowTemplate>
+                        <NoRecordsContent><EmptyState Icon="@Icons.Material.Rounded.LocalShipping" Title="@L["Reports.NoDeliveries"]" Class="ad-empty--compact" /></NoRecordsContent>
+                        <PagerContent><MudTablePager RowsPerPageString="@L["Reports.RowsPerPage"]" InfoFormat="@L["Reports.PageInfo"]" /></PagerContent>
+                    </MudTable>
+                </section>
+            </MudTabPanel>
+        </MudTabs>
+    }
+</div>

@@ -1,0 +1,20 @@
+<div class="ad-empty @Class">
+    <span class="ad-empty__icon"><MudIcon Icon="@Icon" Size="Size.Large" /></span>
+    <h2 class="ad-empty__title">@Title</h2>
+    @if (!string.IsNullOrWhiteSpace(Text))
+    {
+        <p class="ad-empty__text">@Text</p>
+    }
+    @if (ChildContent is not null)
+    {
+        <div class="ad-empty__actions">@ChildContent</div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Icon { get; set; } = Icons.Material.Rounded.Inbox;
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter] public string? Text { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

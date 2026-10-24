@@ -1,0 +1,107 @@
+@page "/entrar"
+@inherits BrandAwareComponent
+@inject AuthSession Session
+@inject NavigationManager Navigation
+
+<PageTitle>@L["Login.Title"] · @Brand.Current.DisplayName</PageTitle>
+
+<div class="ad-auth">
+    <div class="ad-auth__card">
+        <div class="ad-auth__brand">
+            <BrandMark Variant="store" />
+        </div>
+        <h1 class="ad-auth__title">@L["Login.Title"]</h1>
+        <p class="ad-auth__subtitle">@L["Login.Subtitle"]</p>
+
+        <form class="ad-auth__form" @onsubmit="SignInAsync" @onsubmit:preventDefault="true">
+            <MudTextField T="string" @bind-Value="_request.Email" Label="@L["Login.Email"]" Variant="Variant.Outlined"
+                          InputType="InputType.Email" AutoFocus="true" Required="true" Immediate="true"
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Rounded.AlternateEmail" />
+            <MudTextField T="string" @bind-Value="_request.Password" Label="@L["Login.Password"]" Variant="Variant.Outlined"
+                          InputType="@(_showPassword ? InputType.Text : InputType.Password)" Required="true" Immediate="true"
+                          Adornment="Adornment.End"
+                          AdornmentIcon="@(_showPassword ? Icons.Material.Rounded.VisibilityOff : Icons.Material.Rounded.Visibility)"
+                          OnAdornmentClick="@(() => _showPassword = !_showPassword)" />
+
+            @if (_error is not null)
+            {
+                <MudAlert Severity="Severity.Error" Dense="true">@_error</MudAlert>
+            }
+
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" DropShadow="false"
+                       Size="Size.Large" FullWidth="true" Disabled="@(_busy || !CanSubmit)">
+                @if (_busy)
+                {
+                    <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
+                }
+                @L["Login.Submit"]
+            </MudButton>
+        </form>
+
+        <div class="ad-auth__footer">
+            <span>@L["Login.NoAccount"]</span>
+            <a href="@RegisterHref">@L["Login.CreateAccount"]</a>
+        </div>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "returnUrl")] public string? ReturnUrl { get; set; }
+
+    private readonly LoginRequest _request = new();
+    private bool _showPassword;
+    private bool _busy;
+    private string? _error;
+
+    private bool CanSubmit => !string.IsNullOrWhiteSpace(_request.Email) && !string.IsNullOrWhiteSpace(_request.Password);
+
+    private string RegisterHref => LandingRoutes.SafeReturnUrl(ReturnUrl) is { } url
+        ? $"/cadastro?returnUrl={Uri.EscapeDataString(url)}"
+        : "/cadastro";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Session.EnsureRestoredAsync();
+        if (Session.IsAuthenticated)
+        {
+            Navigation.NavigateTo(Destination(), replace: true);
+        }
+    }
+
+    private async Task SignInAsync()
+    {
+        if (!CanSubmit || _busy)
+        {
+            return;
+        }
+
+        _busy = true;
+        _error = null;
+
+        var outcome = await Session.LoginAsync(_request);
+        if (outcome.Success)
+        {
+            Navigation.NavigateTo(Destination(), replace: true);
+            return;
+        }
+
+        _error = AuthMessages.Describe(L, outcome);
+        _busy = false;
+    }
+
+    /// <summary>Back where the user came from — unless it is a page their role cannot open.</summary>
+    private string Destination()
+    {
+        var user = Session.Principal;
+        var returnUrl = LandingRoutes.SafeReturnUrl(ReturnUrl);
+        var staffOnly = returnUrl?.StartsWith("/admin", StringComparison.OrdinalIgnoreCase) == true;
+        var driverOnly = returnUrl?.StartsWith("/motorista", StringComparison.OrdinalIgnoreCase) == true;
+
+        if (returnUrl is null || (staffOnly && !user.IsStaff()) || (driverOnly && !user.IsDriver()))
+        {
+            return LandingRoutes.For(user);
+        }
+
+        return returnUrl;
+    }
+}

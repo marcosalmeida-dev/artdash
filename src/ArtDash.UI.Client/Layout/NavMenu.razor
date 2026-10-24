@@ -1,0 +1,43 @@
+﻿@* Back-office navigation (desktop drawer and the mobile menu). Rounded + dense margins so rows read as
+   inset pills — app.css finishes the shape (same approach as artstore-fs). *@
+<MudNavMenu Rounded="true" Margin="Margin.Dense" Color="Color.Primary" Class="ad-navmenu">
+    <MudNavLink Href="/admin" Match="NavLinkMatch.All" Icon="@Icons.Material.Rounded.SpaceDashboard">@L["Nav.Dashboard"]</MudNavLink>
+    <MudNavLink Href="/admin/relatorios" Icon="@Icons.Material.Rounded.Assessment">@L["Nav.Reports"]</MudNavLink>
+
+    <MudNavGroup Title="@L["Nav.Orders"]" Icon="@Icons.Material.Rounded.ReceiptLong" Expanded="true">
+        <MudNavLink Href="/admin/pedidos/quadro" Match="NavLinkMatch.All" Icon="@Icons.Material.Rounded.ViewKanban">@L["Nav.OrderBoard"]</MudNavLink>
+        <MudNavLink Href="/admin/pedidos" Match="NavLinkMatch.All" Icon="@Icons.Material.Rounded.FormatListBulleted">@L["Nav.AllOrders"]</MudNavLink>
+        <MudNavLink Href="/admin/pedidos/novo" Match="NavLinkMatch.All" Icon="@Icons.Material.Rounded.AddShoppingCart">@L["Nav.NewOrder"]</MudNavLink>
+        <MudNavLink Href="/admin/recebiveis" Icon="@Icons.Material.Rounded.RequestQuote">@L["Nav.Receivables"]</MudNavLink>
+    </MudNavGroup>
+
+    <MudNavGroup Title="@L["Nav.Deliveries"]" Icon="@Icons.Material.Rounded.LocalShipping" Expanded="true">
+        <MudNavLink Href="/admin/rastreamento" Icon="@Icons.Material.Rounded.Map">@L["Nav.LiveMap"]</MudNavLink>
+        <MudNavLink Href="/admin/entregas" Match="NavLinkMatch.All" Icon="@Icons.Material.Rounded.Route">@L["Nav.DeliveryRuns"]</MudNavLink>
+        <MudNavLink Href="/admin/entregas/nova" Match="NavLinkMatch.All" Icon="@Icons.Material.Rounded.AddRoad">@L["Nav.PlanDelivery"]</MudNavLink>
+    </MudNavGroup>
+
+    <MudNavGroup Title="@L["Nav.Records"]" Icon="@Icons.Material.Rounded.Inventory2" Expanded="true">
+        <MudNavLink Href="/admin/produtos" Icon="@Icons.Material.Rounded.Inventory2">@L["Nav.Products"]</MudNavLink>
+        <MudNavLink Href="/admin/categorias" Icon="@Icons.Material.Rounded.Category">@L["Nav.Categories"]</MudNavLink>
+        <MudNavLink Href="/admin/clientes" Icon="@Icons.Material.Rounded.Groups">@L["Nav.Customers"]</MudNavLink>
+        <MudNavLink Href="/admin/veiculos" Icon="@Icons.Material.Rounded.DirectionsCar">@L["Nav.Vehicles"]</MudNavLink>
+        <MudNavLink Href="/admin/motoristas" Icon="@Icons.Material.Rounded.Badge">@L["Nav.Drivers"]</MudNavLink>
+    </MudNavGroup>
+
+    @if (User.IsAdmin())
+    {
+        <MudNavGroup Title="@L["Nav.Settings"]" Icon="@Icons.Material.Rounded.Settings" Expanded="false">
+            <MudNavLink Href="/admin/usuarios" Icon="@Icons.Material.Rounded.ManageAccounts">@L["Nav.Users"]</MudNavLink>
+            <MudNavLink Href="/admin/configuracoes/loja" Icon="@Icons.Material.Rounded.Store">@L["Nav.StoreSettings"]</MudNavLink>
+            <MudNavLink Href="/admin/configuracoes/pagamentos" Icon="@Icons.Material.Rounded.Payments">@L["Nav.PaymentSettings"]</MudNavLink>
+            <MudNavLink Href="/admin/configuracoes/marca" Icon="@Icons.Material.Rounded.Palette">@L["Nav.Branding"]</MudNavLink>
+        </MudNavGroup>
+    }
+
+    <MudNavLink Href="/?preview=1" Match="NavLinkMatch.All" Icon="@Icons.Material.Rounded.Storefront">@L["Nav.ViewStore"]</MudNavLink>
+</MudNavMenu>
+
+@code {
+    [Parameter, EditorRequired] public ClaimsPrincipal User { get; set; } = default!;
+}

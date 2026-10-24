@@ -1,0 +1,16 @@
+global using ArtDash.Application.Common.Exceptions;
+global using ArtDash.Application.Common.Interfaces;
+global using ArtDash.Domain.Catalog;
+global using ArtDash.Domain.Common;
+global using ArtDash.Domain.Customers;
+global using ArtDash.Domain.Deliveries;
+global using ArtDash.Domain.Identity;
+global using ArtDash.Domain.Orders;
+global using ArtDash.Domain.Payments;
+global using ArtDash.Domain.Tenants;
+global using ArtDash.Shared.Constants;
+global using ArtDash.Shared.Enums;
+global using Microsoft.EntityFrameworkCore;
+global using Microsoft.Extensions.DependencyInjection;
+global using Microsoft.Extensions.Logging;
+global using Microsoft.Extensions.Options;

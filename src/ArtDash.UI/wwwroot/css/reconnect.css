@@ -1,0 +1,102 @@
+/* Circuit-reconnection overlay. Driven by js/reconnect.js and by the components-reconnect-* classes
+   Blazor puts on #components-reconnect-modal.
+
+   Plain CSS with no dependency on MudBlazor: it has to render correctly at the exact moment the
+   server is gone, when nothing can be fetched and no component can re-render. The brand variables
+   are already in the document (<style id="ad-brand-vars">), so the overlay still wears the tenant's color. */
+
+#components-reconnect-modal {
+    display: none;
+}
+
+#components-reconnect-modal.components-reconnect-show,
+#components-reconnect-modal.components-reconnect-retrying,
+#components-reconnect-modal.components-reconnect-failed,
+#components-reconnect-modal.components-reconnect-rejected,
+#components-reconnect-modal.artdash-reconnect-waiting {
+    position: fixed;
+    inset: 0;
+    z-index: 20000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    /* Covers the frozen page: half-rendered controls that no longer respond read as a broken app. */
+    background: rgba(17, 17, 17, .72);
+    backdrop-filter: blur(2px);
+}
+
+#components-reconnect-modal .reconnect-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .75rem;
+    width: 100%;
+    max-width: 22rem;
+    padding: 1.75rem 1.5rem;
+    border-radius: .75rem;
+    background: #fff;
+    color: #212121;
+    text-align: center;
+    font-family: var(--ad-font, system-ui, "Segoe UI", Roboto, sans-serif);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, .35);
+}
+
+#components-reconnect-modal .reconnect-spinner {
+    width: 2.25rem;
+    height: 2.25rem;
+    border: 3px solid rgba(var(--ad-primary-rgb, 47, 111, 237), .3);
+    border-top-color: var(--ad-primary, #2F6FED);
+    border-radius: 50%;
+    animation: artdash-reconnect-spin 900ms linear infinite;
+}
+
+#components-reconnect-modal #reconnect-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+#components-reconnect-modal #reconnect-detail {
+    margin: 0;
+    font-size: .875rem;
+    color: #616161;
+}
+
+#components-reconnect-modal #reconnect-detail:empty {
+    display: none;
+}
+
+/* The manual escape hatch only exists once automatic recovery gave up (three reloads in a minute). */
+#components-reconnect-modal #reconnect-retry {
+    display: none;
+    margin-top: .25rem;
+    padding: .6rem 1.5rem;
+    border: none;
+    border-radius: 2rem;
+    background: var(--ad-primary, #2F6FED);
+    color: var(--ad-primary-text, #fff);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+#components-reconnect-modal.artdash-reconnect-manual #reconnect-retry {
+    display: inline-block;
+}
+
+#components-reconnect-modal.artdash-reconnect-manual .reconnect-spinner {
+    display: none;
+}
+
+@keyframes artdash-reconnect-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #components-reconnect-modal .reconnect-spinner {
+        animation-duration: 3s;
+    }
+}

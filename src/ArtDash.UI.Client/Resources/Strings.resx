@@ -1,0 +1,792 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!-- UI texts, neutral culture pt-BR. Generated from the keys used in ArtDash.UI.Client: keep the dotted
+       key scheme (Area.Item); {0}, {1}... are string.Format placeholders. Add Strings.{culture}.resx
+       with the same keys for another language. -->
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="Access.DeniedText" xml:space="preserve"><value>Você não tem permissão para abrir esta página com o seu usuário.</value></data>
+  <data name="Access.DeniedTitle" xml:space="preserve"><value>Acesso restrito</value></data>
+  <data name="Access.GoHome" xml:space="preserve"><value>Ir para o início</value></data>
+  <data name="Address.City" xml:space="preserve"><value>Cidade</value></data>
+  <data name="Address.Complement" xml:space="preserve"><value>Complemento</value></data>
+  <data name="Address.District" xml:space="preserve"><value>Bairro</value></data>
+  <data name="Address.Locate" xml:space="preserve"><value>Localizar no mapa</value></data>
+  <data name="Address.Locating" xml:space="preserve"><value>Localizando...</value></data>
+  <data name="Address.NotOnMap" xml:space="preserve"><value>Endereço ainda não localizado no mapa</value></data>
+  <data name="Address.Number" xml:space="preserve"><value>Número</value></data>
+  <data name="Address.OnMap" xml:space="preserve"><value>Endereço localizado no mapa</value></data>
+  <data name="Address.State" xml:space="preserve"><value>UF</value></data>
+  <data name="Address.Street" xml:space="preserve"><value>Rua / logradouro</value></data>
+  <data name="Address.ZipCode" xml:space="preserve"><value>CEP</value></data>
+  <data name="Auth.Failed" xml:space="preserve"><value>Não foi possível entrar. Confira o e-mail e a senha.</value></data>
+  <data name="Auth.NetworkError" xml:space="preserve"><value>Sem conexão com o servidor. Verifique a internet e tente de novo.</value></data>
+  <data name="Auth.TooManyAttempts" xml:space="preserve"><value>Muitas tentativas seguidas. Aguarde um minuto e tente novamente.</value></data>
+  <data name="Board.InDelivery" xml:space="preserve"><value>Em rota planejada</value></data>
+  <data name="Board.NewOrder" xml:space="preserve"><value>Novo pedido #{0} — {1}</value></data>
+  <data name="Board.Subtitle" xml:space="preserve"><value>Arraste os cartões para avançar os pedidos. A saída e a entrega são registradas pelo motorista.</value></data>
+  <data name="Board.Title" xml:space="preserve"><value>Quadro de pedidos</value></data>
+  <data name="Branding.Accent" xml:space="preserve"><value>Cor de destaque</value></data>
+  <data name="Branding.AccentHint" xml:space="preserve"><value>Carrinho, selos e chamadas para ação.</value></data>
+  <data name="Branding.AddToCart" xml:space="preserve"><value>Adicionar</value></data>
+  <data name="Branding.AllowDarkMode" xml:space="preserve"><value>Permitir modo escuro</value></data>
+  <data name="Branding.Colors" xml:space="preserve"><value>Cores</value></data>
+  <data name="Branding.Console" xml:space="preserve"><value>Cor do painel</value></data>
+  <data name="Branding.ConsoleHint" xml:space="preserve"><value>Fundo da barra superior do painel e do app do motorista.</value></data>
+  <data name="Branding.DiscardText" xml:space="preserve"><value>As mudanças não publicadas serão perdidas e a identidade atual volta a valer.</value></data>
+  <data name="Branding.DiscardTitle" xml:space="preserve"><value>Descartar alterações?</value></data>
+  <data name="Branding.DisplayName" xml:space="preserve"><value>Nome exibido</value></data>
+  <data name="Branding.DisplayNameHint" xml:space="preserve"><value>Aparece no topo da loja, no título das páginas e no app instalado.</value></data>
+  <data name="Branding.Font" xml:space="preserve"><value>Fonte</value></data>
+  <data name="Branding.Icon" xml:space="preserve"><value>Ícone quadrado</value></data>
+  <data name="Branding.IconHint" xml:space="preserve"><value>Imagem quadrada (512×512 recomendado) para favicon e ícone do app.</value></data>
+  <data name="Branding.IconPreview" xml:space="preserve"><value>Ícone do app e da aba do navegador</value></data>
+  <data name="Branding.Identity" xml:space="preserve"><value>Nome e slogan</value></data>
+  <data name="Branding.Images" xml:space="preserve"><value>Logotipos e ícone</value></data>
+  <data name="Branding.InvalidColor" xml:space="preserve"><value>Use o formato #RRGGBB</value></data>
+  <data name="Branding.Logo" xml:space="preserve"><value>Logotipo (fundo claro)</value></data>
+  <data name="Branding.LogoDark" xml:space="preserve"><value>Logotipo (fundo escuro)</value></data>
+  <data name="Branding.LogoDarkHint" xml:space="preserve"><value>Versão clara do logotipo para a barra do painel. Se vazio, usa o logotipo normal.</value></data>
+  <data name="Branding.LogoHint" xml:space="preserve"><value>PNG, SVG ou WEBP com fundo transparente, até 2 MB. Usado na loja e no login.</value></data>
+  <data name="Branding.LowContrast" xml:space="preserve"><value>A cor principal tem pouco contraste com texto branco e preto; botões e links podem ficar difíceis de ler.</value></data>
+  <data name="Branding.Presets" xml:space="preserve"><value>Sugestões:</value></data>
+  <data name="Branding.Preview" xml:space="preserve"><value>Pré-visualização</value></data>
+  <data name="Branding.PreviewNotice" xml:space="preserve"><value>Pré-visualização: as mudanças aparecem só para você até serem publicadas.</value></data>
+  <data name="Branding.Primary" xml:space="preserve"><value>Cor principal</value></data>
+  <data name="Branding.PrimaryHint" xml:space="preserve"><value>Botões, links e destaques.</value></data>
+  <data name="Branding.Publish" xml:space="preserve"><value>Publicar alterações</value></data>
+  <data name="Branding.Radius" xml:space="preserve"><value>Arredondamento dos cantos: {0} px</value></data>
+  <data name="Branding.SampleProduct" xml:space="preserve"><value>Produto de exemplo</value></data>
+  <data name="Branding.Saved" xml:space="preserve"><value>Identidade visual publicada.</value></data>
+  <data name="Branding.Secondary" xml:space="preserve"><value>Cor secundária</value></data>
+  <data name="Branding.SecondaryHint" xml:space="preserve"><value>Detalhes, gradientes e ícones do mapa.</value></data>
+  <data name="Branding.Subtitle" xml:space="preserve"><value>Nome, logotipos, cores e fonte da sua marca na loja, no painel e no app do motorista.</value></data>
+  <data name="Branding.Tagline" xml:space="preserve"><value>Slogan</value></data>
+  <data name="Branding.TaglineHint" xml:space="preserve"><value>Uma frase curta abaixo do nome (opcional).</value></data>
+  <data name="Branding.Title" xml:space="preserve"><value>Identidade visual</value></data>
+  <data name="Branding.TypeAndShape" xml:space="preserve"><value>Fonte e formato</value></data>
+  <data name="Cart.BelowMinimum" xml:space="preserve"><value>O pedido mínimo é de {0}.</value></data>
+  <data name="Cart.BrowseProducts" xml:space="preserve"><value>Ver produtos</value></data>
+  <data name="Cart.Checkout" xml:space="preserve"><value>Finalizar pedido</value></data>
+  <data name="Cart.Empty" xml:space="preserve"><value>Seu carrinho está vazio</value></data>
+  <data name="Cart.EmptyHint" xml:space="preserve"><value>Escolha os produtos na loja e eles aparecem aqui.</value></data>
+  <data name="Cart.KeepShopping" xml:space="preserve"><value>Continuar comprando</value></data>
+  <data name="Cart.MissingForFree" xml:space="preserve"><value>Faltam {0} para a entrega grátis.</value></data>
+  <data name="Cart.StaffHint" xml:space="preserve"><value>Você está conectado como equipe. Para lançar um pedido, use Novo pedido no painel.</value></data>
+  <data name="Cart.Summary" xml:space="preserve"><value>Resumo</value></data>
+  <data name="Cart.Title" xml:space="preserve"><value>Carrinho</value></data>
+  <data name="Categories.Created" xml:space="preserve"><value>Categoria criada.</value></data>
+  <data name="Categories.DeleteConfirm" xml:space="preserve"><value>Excluir a categoria "{0}"?</value></data>
+  <data name="Categories.DeleteHint" xml:space="preserve"><value>Só é possível excluir categorias sem produtos. Para esconder uma categoria da loja, desmarque "Visível na loja".</value></data>
+  <data name="Categories.DeleteTitle" xml:space="preserve"><value>Excluir categoria</value></data>
+  <data name="Categories.Deleted" xml:space="preserve"><value>Categoria excluída.</value></data>
+  <data name="Categories.Description" xml:space="preserve"><value>Descrição</value></data>
+  <data name="Categories.Edit" xml:space="preserve"><value>Editar categoria</value></data>
+  <data name="Categories.Hidden" xml:space="preserve"><value>Oculta na loja</value></data>
+  <data name="Categories.Name" xml:space="preserve"><value>Nome</value></data>
+  <data name="Categories.New" xml:space="preserve"><value>Nova categoria</value></data>
+  <data name="Categories.None" xml:space="preserve"><value>Nenhuma categoria cadastrada</value></data>
+  <data name="Categories.NoneHint" xml:space="preserve"><value>Crie categorias para organizar os produtos da loja.</value></data>
+  <data name="Categories.ProductCount" xml:space="preserve"><value>{0} produto(s)</value></data>
+  <data name="Categories.SeeProducts" xml:space="preserve"><value>Ver produtos</value></data>
+  <data name="Categories.Subtitle" xml:space="preserve"><value>As seções da loja, na ordem em que aparecem.</value></data>
+  <data name="Categories.Title" xml:space="preserve"><value>Categorias</value></data>
+  <data name="Categories.Visible" xml:space="preserve"><value>Visível na loja</value></data>
+  <data name="Checkout.DeliveryAddress" xml:space="preserve"><value>Endereço de entrega</value></data>
+  <data name="Checkout.NoPaymentOptions" xml:space="preserve"><value>Nenhuma forma de pagamento está disponível no momento. Fale com a loja.</value></data>
+  <data name="Checkout.Notes" xml:space="preserve"><value>Observações</value></data>
+  <data name="Checkout.NotesPlaceholder" xml:space="preserve"><value>Ponto de referência, horário para receber, troco...</value></data>
+  <data name="Checkout.OnDeliveryMethod" xml:space="preserve"><value>Como você vai pagar na entrega?</value></data>
+  <data name="Checkout.Payment" xml:space="preserve"><value>Pagamento</value></data>
+  <data name="Checkout.Place" xml:space="preserve"><value>Confirmar pedido</value></data>
+  <data name="Checkout.PlaceAndPay" xml:space="preserve"><value>Confirmar e pagar</value></data>
+  <data name="Checkout.PricesConfirmed" xml:space="preserve"><value>Os preços são confirmados pela loja no momento do pedido.</value></data>
+  <data name="Checkout.Timing.Invoiced" xml:space="preserve"><value>Faturado (a prazo)</value></data>
+  <data name="Checkout.Timing.InvoicedHint" xml:space="preserve"><value>Pague em até {0} dias, conforme o seu cadastro.</value></data>
+  <data name="Checkout.Timing.InvoicedHintDefault" xml:space="preserve"><value>Pague no prazo combinado com a loja.</value></data>
+  <data name="Checkout.Timing.OnDelivery" xml:space="preserve"><value>Pagar na entrega</value></data>
+  <data name="Checkout.Timing.OnDeliveryHint" xml:space="preserve"><value>PIX, cartão ou dinheiro ao receber.</value></data>
+  <data name="Checkout.Timing.Prepaid" xml:space="preserve"><value>Pagar agora</value></data>
+  <data name="Checkout.Timing.PrepaidHint" xml:space="preserve"><value>PIX ou cartão, aprovado na hora.</value></data>
+  <data name="Checkout.Title" xml:space="preserve"><value>Finalizar pedido</value></data>
+  <data name="Common.Active" xml:space="preserve"><value>Ativo</value></data>
+  <data name="Common.Add" xml:space="preserve"><value>Adicionar</value></data>
+  <data name="Common.Back" xml:space="preserve"><value>Voltar</value></data>
+  <data name="Common.Cancel" xml:space="preserve"><value>Cancelar</value></data>
+  <data name="Common.Close" xml:space="preserve"><value>Fechar</value></data>
+  <data name="Common.Copy" xml:space="preserve"><value>Copiar</value></data>
+  <data name="Common.Delete" xml:space="preserve"><value>Excluir</value></data>
+  <data name="Common.Discard" xml:space="preserve"><value>Descartar</value></data>
+  <data name="Common.Edit" xml:space="preserve"><value>Editar</value></data>
+  <data name="Common.From" xml:space="preserve"><value>De</value></data>
+  <data name="Common.Inactive" xml:space="preserve"><value>Inativo</value></data>
+  <data name="Common.Refresh" xml:space="preserve"><value>Atualizar</value></data>
+  <data name="Common.Remove" xml:space="preserve"><value>Remover</value></data>
+  <data name="Common.Save" xml:space="preserve"><value>Salvar</value></data>
+  <data name="Common.Saved" xml:space="preserve"><value>Alterações salvas.</value></data>
+  <data name="Common.SortOrder" xml:space="preserve"><value>Ordem</value></data>
+  <data name="Common.SortOrderHint" xml:space="preserve"><value>Menor aparece primeiro.</value></data>
+  <data name="Common.Status" xml:space="preserve"><value>Situação</value></data>
+  <data name="Common.To" xml:space="preserve"><value>Até</value></data>
+  <data name="Customers.ActiveLabel" xml:space="preserve"><value>Cliente ativo (pode fazer pedidos)</value></data>
+  <data name="Customers.AllowInvoicing" xml:space="preserve"><value>Permitir pedidos faturados (pagar depois)</value></data>
+  <data name="Customers.Cnpj" xml:space="preserve"><value>CNPJ</value></data>
+  <data name="Customers.CompanyName" xml:space="preserve"><value>Razão social</value></data>
+  <data name="Customers.Contact" xml:space="preserve"><value>Contato</value></data>
+  <data name="Customers.Cpf" xml:space="preserve"><value>CPF</value></data>
+  <data name="Customers.Created" xml:space="preserve"><value>Cliente cadastrado.</value></data>
+  <data name="Customers.CreditLimit" xml:space="preserve"><value>Limite de crédito</value></data>
+  <data name="Customers.CreditLimitHint" xml:space="preserve"><value>Vazio ou 0: sem limite.</value></data>
+  <data name="Customers.Customer" xml:space="preserve"><value>Cliente</value></data>
+  <data name="Customers.Days" xml:space="preserve"><value>dias</value></data>
+  <data name="Customers.DeleteConfirm" xml:space="preserve"><value>Excluir o cliente "{0}"? Os pedidos dele continuam no histórico.</value></data>
+  <data name="Customers.DeleteTitle" xml:space="preserve"><value>Excluir cliente</value></data>
+  <data name="Customers.Deleted" xml:space="preserve"><value>Cliente excluído.</value></data>
+  <data name="Customers.DeliveryAddress" xml:space="preserve"><value>Endereço de entrega</value></data>
+  <data name="Customers.Edit" xml:space="preserve"><value>Editar cliente</value></data>
+  <data name="Customers.Email" xml:space="preserve"><value>E-mail</value></data>
+  <data name="Customers.EmailLoginHint" xml:space="preserve"><value>Este cliente tem acesso à loja: o login dele continua com o e-mail da conta.</value></data>
+  <data name="Customers.FullName" xml:space="preserve"><value>Nome completo</value></data>
+  <data name="Customers.HasLogin" xml:space="preserve"><value>Acesso à loja</value></data>
+  <data name="Customers.Invoicing" xml:space="preserve"><value>Faturado</value></data>
+  <data name="Customers.New" xml:space="preserve"><value>Novo cliente</value></data>
+  <data name="Customers.NewOrder" xml:space="preserve"><value>Novo pedido para este cliente</value></data>
+  <data name="Customers.None" xml:space="preserve"><value>Nenhum cliente encontrado</value></data>
+  <data name="Customers.Notes" xml:space="preserve"><value>Observações internas</value></data>
+  <data name="Customers.OpenBalance" xml:space="preserve"><value>Em aberto: {0}</value></data>
+  <data name="Customers.PayLater" xml:space="preserve"><value>Venda a prazo</value></data>
+  <data name="Customers.Phone" xml:space="preserve"><value>Telefone / WhatsApp</value></data>
+  <data name="Customers.Search" xml:space="preserve"><value>Buscar por nome, documento, e-mail ou telefone</value></data>
+  <data name="Customers.Subtitle" xml:space="preserve"><value>Pessoas e empresas que compram com você, com ou sem acesso à loja.</value></data>
+  <data name="Customers.TermDays" xml:space="preserve"><value>Prazo de pagamento</value></data>
+  <data name="Customers.TermDaysHint" xml:space="preserve"><value>0 usa o prazo padrão da loja.</value></data>
+  <data name="Customers.Title" xml:space="preserve"><value>Clientes</value></data>
+  <data name="Customers.TradeName" xml:space="preserve"><value>Nome fantasia</value></data>
+  <data name="Dashboard.ActiveRuns" xml:space="preserve"><value>{0} rota(s) em andamento</value></data>
+  <data name="Dashboard.Greeting" xml:space="preserve"><value>Olá, {0}!</value></data>
+  <data name="Dashboard.Last7Days" xml:space="preserve"><value>Vendas dos últimos 7 dias</value></data>
+  <data name="Dashboard.NoOrders" xml:space="preserve"><value>Nenhum pedido ainda</value></data>
+  <data name="Dashboard.OrdersShort" xml:space="preserve"><value>{0} ped.</value></data>
+  <data name="Dashboard.OrdersToday" xml:space="preserve"><value>Pedidos hoje</value></data>
+  <data name="Dashboard.OutForDelivery" xml:space="preserve"><value>Em rota</value></data>
+  <data name="Dashboard.OverdueCount" xml:space="preserve"><value>{0} título(s) vencido(s)</value></data>
+  <data name="Dashboard.Pending" xml:space="preserve"><value>Aguardando</value></data>
+  <data name="Dashboard.Preparing" xml:space="preserve"><value>Em separação</value></data>
+  <data name="Dashboard.Ready" xml:space="preserve"><value>Prontos para entrega</value></data>
+  <data name="Dashboard.ReceivablesOpen" xml:space="preserve"><value>A receber</value></data>
+  <data name="Dashboard.ReceivablesOverdue" xml:space="preserve"><value>Vencido</value></data>
+  <data name="Dashboard.RecentOrders" xml:space="preserve"><value>Pedidos recentes</value></data>
+  <data name="Dashboard.RevenueToday" xml:space="preserve"><value>Vendido hoje</value></data>
+  <data name="Dashboard.Title" xml:space="preserve"><value>Painel</value></data>
+  <data name="Deliveries.AnyMethod" xml:space="preserve"><value>qualquer forma</value></data>
+  <data name="Deliveries.CallDriver" xml:space="preserve"><value>Ligar para o motorista</value></data>
+  <data name="Deliveries.Cancel" xml:space="preserve"><value>Cancelar rota</value></data>
+  <data name="Deliveries.CancelReason" xml:space="preserve"><value>Motivo do cancelamento</value></data>
+  <data name="Deliveries.CancelYes" xml:space="preserve"><value>Cancelar rota</value></data>
+  <data name="Deliveries.Cancelled" xml:space="preserve"><value>Rota cancelada. Os pedidos voltaram para a fila.</value></data>
+  <data name="Deliveries.Collect" xml:space="preserve"><value>Receber {0} ({1})</value></data>
+  <data name="Deliveries.DeliveredAt" xml:space="preserve"><value>Entregue às {0} para {1}</value></data>
+  <data name="Deliveries.Driver" xml:space="preserve"><value>Motorista</value></data>
+  <data name="Deliveries.LastPosition" xml:space="preserve"><value>Última posição</value></data>
+  <data name="Deliveries.LastSeen" xml:space="preserve"><value>Visto às {0}</value></data>
+  <data name="Deliveries.None" xml:space="preserve"><value>Nenhuma rota encontrada</value></data>
+  <data name="Deliveries.Number" xml:space="preserve"><value>Rota</value></data>
+  <data name="Deliveries.RunNumber" xml:space="preserve"><value>Rota {0}</value></data>
+  <data name="Deliveries.ScheduledFor" xml:space="preserve"><value>Saída prevista</value></data>
+  <data name="Deliveries.ScheduledOn" xml:space="preserve"><value>Saída prevista: {0}</value></data>
+  <data name="Deliveries.Speed" xml:space="preserve"><value>{0} km/h</value></data>
+  <data name="Deliveries.Stops" xml:space="preserve"><value>Paradas</value></data>
+  <data name="Deliveries.StopsFailed" xml:space="preserve"><value>{0} não entregue(s)</value></data>
+  <data name="Deliveries.StopsProgress" xml:space="preserve"><value>{0}/{1} entregues</value></data>
+  <data name="Deliveries.StopsTitle" xml:space="preserve"><value>Paradas ({0})</value></data>
+  <data name="Deliveries.Title" xml:space="preserve"><value>Rotas de entrega</value></data>
+  <data name="Deliveries.Vehicle" xml:space="preserve"><value>Veículo</value></data>
+  <data name="Driver.Call" xml:space="preserve"><value>Ligar</value></data>
+  <data name="Driver.Collect" xml:space="preserve"><value>Receber {0}</value></data>
+  <data name="Driver.ConfirmDelivery" xml:space="preserve"><value>Confirmar entrega</value></data>
+  <data name="Driver.Delivered" xml:space="preserve"><value>Entregue</value></data>
+  <data name="Driver.DeliveredTitle" xml:space="preserve"><value>Confirmar entrega da parada {0}</value></data>
+  <data name="Driver.DeliveryNotes" xml:space="preserve"><value>Observações da entrega</value></data>
+  <data name="Driver.DeliveryRecorded" xml:space="preserve"><value>Entrega registrada.</value></data>
+  <data name="Driver.FailConfirm" xml:space="preserve"><value>Registrar</value></data>
+  <data name="Driver.FailHint" xml:space="preserve"><value>Ex.: ninguém em casa, endereço não encontrado, cliente recusou.</value></data>
+  <data name="Driver.FailReason" xml:space="preserve"><value>O que aconteceu?</value></data>
+  <data name="Driver.FailRecorded" xml:space="preserve"><value>Registrado. O pedido volta para a fila da loja.</value></data>
+  <data name="Driver.Finish" xml:space="preserve"><value>Encerrar rota</value></data>
+  <data name="Driver.Finished" xml:space="preserve"><value>Rota encerrada. Obrigado!</value></data>
+  <data name="Driver.GpsDenied" xml:space="preserve"><value>Permita o acesso à localização nas configurações do navegador.</value></data>
+  <data name="Driver.GpsLastSent" xml:space="preserve"><value>Última posição enviada às {0}</value></data>
+  <data name="Driver.GpsOff" xml:space="preserve"><value>Localização desligada</value></data>
+  <data name="Driver.GpsOn" xml:space="preserve"><value>Localização ativa</value></data>
+  <data name="Driver.GpsPause" xml:space="preserve"><value>Pausar</value></data>
+  <data name="Driver.GpsResume" xml:space="preserve"><value>Ativar</value></data>
+  <data name="Driver.GpsSendFailing" xml:space="preserve"><value>Sem conexão: as posições serão reenviadas quando a internet voltar.</value></data>
+  <data name="Driver.GpsUnavailable" xml:space="preserve"><value>Não foi possível obter a localização agora.</value></data>
+  <data name="Driver.GpsUnsupported" xml:space="preserve"><value>Este aparelho ou navegador não informa a localização.</value></data>
+  <data name="Driver.GpsWaiting" xml:space="preserve"><value>Aguardando o sinal do GPS...</value></data>
+  <data name="Driver.Maps" xml:space="preserve"><value>Rota</value></data>
+  <data name="Driver.NoRuns" xml:space="preserve"><value>Nenhuma rota para você agora</value></data>
+  <data name="Driver.NoRunsHint" xml:space="preserve"><value>Quando a loja planejar uma rota no seu nome, ela aparece aqui.</value></data>
+  <data name="Driver.NotDelivered" xml:space="preserve"><value>Não entregue</value></data>
+  <data name="Driver.Recipient" xml:space="preserve"><value>Quem recebeu</value></data>
+  <data name="Driver.Run" xml:space="preserve"><value>Rota de entrega</value></data>
+  <data name="Driver.Start" xml:space="preserve"><value>Iniciar rota</value></data>
+  <data name="Driver.Started" xml:space="preserve"><value>Rota iniciada. Boa viagem!</value></data>
+  <data name="Driver.Title" xml:space="preserve"><value>Minhas entregas</value></data>
+  <data name="Drivers.License" xml:space="preserve"><value>CNH {0} · categoria {1}</value></data>
+  <data name="Drivers.LicenseExpired" xml:space="preserve"><value>vencida em {0}</value></data>
+  <data name="Drivers.LicenseExpires" xml:space="preserve"><value>válida até {0}</value></data>
+  <data name="Drivers.LicenseExpiresSoon" xml:space="preserve"><value>vence em {0}</value></data>
+  <data name="Drivers.Manage" xml:space="preserve"><value>Gerenciar em Usuários</value></data>
+  <data name="Drivers.NoLicense" xml:space="preserve"><value>CNH não informada</value></data>
+  <data name="Drivers.NoPhone" xml:space="preserve"><value>Sem telefone</value></data>
+  <data name="Drivers.None" xml:space="preserve"><value>Nenhum motorista cadastrado</value></data>
+  <data name="Drivers.NoneHint" xml:space="preserve"><value>Cadastre um usuário com o perfil Motorista em Configurações › Usuários.</value></data>
+  <data name="Drivers.OnDelivery" xml:space="preserve"><value>Em rota</value></data>
+  <data name="Drivers.Subtitle" xml:space="preserve"><value>Usuários com o perfil Motorista e os dados da CNH.</value></data>
+  <data name="Drivers.Title" xml:space="preserve"><value>Motoristas</value></data>
+  <data name="Enum.CustomerType.Company" xml:space="preserve"><value>Pessoa jurídica</value></data>
+  <data name="Enum.CustomerType.Individual" xml:space="preserve"><value>Pessoa física</value></data>
+  <data name="Enum.DeliveryStatus.Cancelled" xml:space="preserve"><value>Cancelada</value></data>
+  <data name="Enum.DeliveryStatus.Completed" xml:space="preserve"><value>Concluída</value></data>
+  <data name="Enum.DeliveryStatus.InProgress" xml:space="preserve"><value>Em rota</value></data>
+  <data name="Enum.DeliveryStatus.Planned" xml:space="preserve"><value>Planejada</value></data>
+  <data name="Enum.DeliveryStopStatus.Delivered" xml:space="preserve"><value>Entregue</value></data>
+  <data name="Enum.DeliveryStopStatus.Failed" xml:space="preserve"><value>Não entregue</value></data>
+  <data name="Enum.DeliveryStopStatus.Pending" xml:space="preserve"><value>Pendente</value></data>
+  <data name="Enum.OrderChannel.Backoffice" xml:space="preserve"><value>Atendimento</value></data>
+  <data name="Enum.OrderChannel.Storefront" xml:space="preserve"><value>Loja online</value></data>
+  <data name="Enum.OrderStatus.Cancelled" xml:space="preserve"><value>Cancelado</value></data>
+  <data name="Enum.OrderStatus.Confirmed" xml:space="preserve"><value>Confirmado</value></data>
+  <data name="Enum.OrderStatus.Delivered" xml:space="preserve"><value>Entregue</value></data>
+  <data name="Enum.OrderStatus.OutForDelivery" xml:space="preserve"><value>Saiu para entrega</value></data>
+  <data name="Enum.OrderStatus.Pending" xml:space="preserve"><value>Aguardando</value></data>
+  <data name="Enum.OrderStatus.Preparing" xml:space="preserve"><value>Em separação</value></data>
+  <data name="Enum.OrderStatus.ReadyForDelivery" xml:space="preserve"><value>Pronto para entrega</value></data>
+  <data name="Enum.PaymentMethod.BankSlip" xml:space="preserve"><value>Boleto</value></data>
+  <data name="Enum.PaymentMethod.BankTransfer" xml:space="preserve"><value>Transferência</value></data>
+  <data name="Enum.PaymentMethod.Cash" xml:space="preserve"><value>Dinheiro</value></data>
+  <data name="Enum.PaymentMethod.CreditCard" xml:space="preserve"><value>Cartão de crédito</value></data>
+  <data name="Enum.PaymentMethod.DebitCard" xml:space="preserve"><value>Cartão de débito</value></data>
+  <data name="Enum.PaymentMethod.Pix" xml:space="preserve"><value>PIX</value></data>
+  <data name="Enum.PaymentStatus.Paid" xml:space="preserve"><value>Pago</value></data>
+  <data name="Enum.PaymentStatus.PartiallyPaid" xml:space="preserve"><value>Pago em parte</value></data>
+  <data name="Enum.PaymentStatus.Pending" xml:space="preserve"><value>A pagar</value></data>
+  <data name="Enum.PaymentStatus.Refunded" xml:space="preserve"><value>Estornado</value></data>
+  <data name="Enum.PaymentTiming.Invoiced" xml:space="preserve"><value>Faturado</value></data>
+  <data name="Enum.PaymentTiming.OnDelivery" xml:space="preserve"><value>Na entrega</value></data>
+  <data name="Enum.PaymentTiming.Prepaid" xml:space="preserve"><value>Pré-pago</value></data>
+  <data name="Enum.ReceivableFilter.All" xml:space="preserve"><value>Todos</value></data>
+  <data name="Enum.ReceivableFilter.Open" xml:space="preserve"><value>Em aberto</value></data>
+  <data name="Enum.ReceivableFilter.Overdue" xml:space="preserve"><value>Vencidos</value></data>
+  <data name="Enum.ReceivableFilter.Paid" xml:space="preserve"><value>Pagos</value></data>
+  <data name="Enum.TransactionStatus.Approved" xml:space="preserve"><value>Aprovado</value></data>
+  <data name="Enum.TransactionStatus.Cancelled" xml:space="preserve"><value>Cancelado</value></data>
+  <data name="Enum.TransactionStatus.ChargedBack" xml:space="preserve"><value>Contestado</value></data>
+  <data name="Enum.TransactionStatus.Expired" xml:space="preserve"><value>Expirado</value></data>
+  <data name="Enum.TransactionStatus.Failed" xml:space="preserve"><value>Falhou</value></data>
+  <data name="Enum.TransactionStatus.InProcess" xml:space="preserve"><value>Em análise</value></data>
+  <data name="Enum.TransactionStatus.Pending" xml:space="preserve"><value>Pendente</value></data>
+  <data name="Enum.TransactionStatus.Refunded" xml:space="preserve"><value>Estornado</value></data>
+  <data name="Enum.TransactionStatus.Rejected" xml:space="preserve"><value>Recusado</value></data>
+  <data name="Enum.UnitOfMeasure.Box" xml:space="preserve"><value>cx</value></data>
+  <data name="Enum.UnitOfMeasure.Kilogram" xml:space="preserve"><value>kg</value></data>
+  <data name="Enum.UnitOfMeasure.Liter" xml:space="preserve"><value>L</value></data>
+  <data name="Enum.UnitOfMeasure.Pack" xml:space="preserve"><value>pct</value></data>
+  <data name="Enum.UnitOfMeasure.Unit" xml:space="preserve"><value>un</value></data>
+  <data name="Enum.VehicleType.Car" xml:space="preserve"><value>Carro</value></data>
+  <data name="Enum.VehicleType.Motorcycle" xml:space="preserve"><value>Moto</value></data>
+  <data name="Enum.VehicleType.Truck" xml:space="preserve"><value>Caminhão</value></data>
+  <data name="Enum.VehicleType.Van" xml:space="preserve"><value>Van</value></data>
+  <data name="Errors.Forbidden" xml:space="preserve"><value>Você não tem permissão para esta ação.</value></data>
+  <data name="Errors.Generic" xml:space="preserve"><value>Não foi possível concluir a operação.</value></data>
+  <data name="Errors.Network" xml:space="preserve"><value>Sem conexão com o servidor. Verifique a internet e tente de novo.</value></data>
+  <data name="Errors.NotFound" xml:space="preserve"><value>Registro não encontrado. Ele pode ter sido excluído.</value></data>
+  <data name="Errors.Reload" xml:space="preserve"><value>Recarregar</value></data>
+  <data name="Errors.Server" xml:space="preserve"><value>O servidor encontrou um problema. Tente novamente em instantes.</value></data>
+  <data name="Errors.Unhandled" xml:space="preserve"><value>Ocorreu um erro inesperado.</value></data>
+  <data name="LiveMap.FitAll" xml:space="preserve"><value>Mostrar todos</value></data>
+  <data name="LiveMap.Nobody" xml:space="preserve"><value>Nenhum veículo em rota</value></data>
+  <data name="LiveMap.NobodyHint" xml:space="preserve"><value>Quando um motorista iniciar uma rota, a posição dele aparece aqui.</value></data>
+  <data name="LiveMap.OnTheRoad" xml:space="preserve"><value>Em rota ({0})</value></data>
+  <data name="LiveMap.OpenRun" xml:space="preserve"><value>Abrir rota</value></data>
+  <data name="LiveMap.Subtitle" xml:space="preserve"><value>Veículos em rota, atualizados pelo celular dos motoristas.</value></data>
+  <data name="LiveMap.Title" xml:space="preserve"><value>Rastreamento ao vivo</value></data>
+  <data name="Login.CreateAccount" xml:space="preserve"><value>Criar conta</value></data>
+  <data name="Login.Email" xml:space="preserve"><value>E-mail</value></data>
+  <data name="Login.NoAccount" xml:space="preserve"><value>Ainda não tem conta?</value></data>
+  <data name="Login.Password" xml:space="preserve"><value>Senha</value></data>
+  <data name="Login.Submit" xml:space="preserve"><value>Entrar</value></data>
+  <data name="Login.Subtitle" xml:space="preserve"><value>Acesse com o seu e-mail e senha.</value></data>
+  <data name="Login.Title" xml:space="preserve"><value>Entrar</value></data>
+  <data name="Map.Unavailable" xml:space="preserve"><value>Mapa indisponível no momento.</value></data>
+  <data name="MyOrders.AwaitingPayment" xml:space="preserve"><value>Este pedido aguarda o pagamento para ser confirmado.</value></data>
+  <data name="MyOrders.Cancel" xml:space="preserve"><value>Cancelar pedido</value></data>
+  <data name="MyOrders.CancelConfirm" xml:space="preserve"><value>Tem certeza de que deseja cancelar este pedido?</value></data>
+  <data name="MyOrders.CancelYes" xml:space="preserve"><value>Sim, cancelar</value></data>
+  <data name="MyOrders.Cancelled" xml:space="preserve"><value>Pedido cancelado.</value></data>
+  <data name="MyOrders.Empty" xml:space="preserve"><value>Você ainda não fez pedidos</value></data>
+  <data name="MyOrders.EmptyHint" xml:space="preserve"><value>Seus pedidos e o acompanhamento da entrega aparecem aqui.</value></data>
+  <data name="MyOrders.Items" xml:space="preserve"><value>{0} item(ns)</value></data>
+  <data name="MyOrders.NewOrder" xml:space="preserve"><value>Fazer um pedido</value></data>
+  <data name="MyOrders.OrderNumber" xml:space="preserve"><value>Pedido #{0}</value></data>
+  <data name="MyOrders.PayNow" xml:space="preserve"><value>Pagar agora</value></data>
+  <data name="MyOrders.PlacedAt" xml:space="preserve"><value>Feito em {0}</value></data>
+  <data name="MyOrders.ThankYou" xml:space="preserve"><value>Pedido recebido! Acompanhe aqui cada etapa até a entrega.</value></data>
+  <data name="MyOrders.Title" xml:space="preserve"><value>Meus pedidos</value></data>
+  <data name="MyOrders.Track" xml:space="preserve"><value>Acompanhar entrega</value></data>
+  <data name="Nav.AccountShort" xml:space="preserve"><value>Conta</value></data>
+  <data name="Nav.AllOrders" xml:space="preserve"><value>Todos os pedidos</value></data>
+  <data name="Nav.Branding" xml:space="preserve"><value>Identidade visual</value></data>
+  <data name="Nav.Cart" xml:space="preserve"><value>Carrinho</value></data>
+  <data name="Nav.Categories" xml:space="preserve"><value>Categorias</value></data>
+  <data name="Nav.ChangePassword" xml:space="preserve"><value>Alterar senha</value></data>
+  <data name="Nav.Customers" xml:space="preserve"><value>Clientes</value></data>
+  <data name="Nav.Dashboard" xml:space="preserve"><value>Painel</value></data>
+  <data name="Nav.DashboardShort" xml:space="preserve"><value>Painel</value></data>
+  <data name="Nav.Deliveries" xml:space="preserve"><value>Entregas</value></data>
+  <data name="Nav.DeliveryRuns" xml:space="preserve"><value>Rotas</value></data>
+  <data name="Nav.Drivers" xml:space="preserve"><value>Motoristas</value></data>
+  <data name="Nav.LiveMap" xml:space="preserve"><value>Rastreamento ao vivo</value></data>
+  <data name="Nav.LiveMapShort" xml:space="preserve"><value>Mapa</value></data>
+  <data name="Nav.Main" xml:space="preserve"><value>Navegação principal</value></data>
+  <data name="Nav.Menu" xml:space="preserve"><value>Menu</value></data>
+  <data name="Nav.MyAccount" xml:space="preserve"><value>Minha conta</value></data>
+  <data name="Nav.MyDeliveries" xml:space="preserve"><value>Minhas entregas</value></data>
+  <data name="Nav.MyDeliveriesShort" xml:space="preserve"><value>Entregas</value></data>
+  <data name="Nav.MyOrders" xml:space="preserve"><value>Meus pedidos</value></data>
+  <data name="Nav.MyOrdersShort" xml:space="preserve"><value>Pedidos</value></data>
+  <data name="Nav.NewOrder" xml:space="preserve"><value>Novo pedido</value></data>
+  <data name="Nav.OrderBoard" xml:space="preserve"><value>Quadro de pedidos</value></data>
+  <data name="Nav.OrderBoardShort" xml:space="preserve"><value>Quadro</value></data>
+  <data name="Nav.Orders" xml:space="preserve"><value>Pedidos</value></data>
+  <data name="Nav.PasswordShort" xml:space="preserve"><value>Senha</value></data>
+  <data name="Nav.PaymentSettings" xml:space="preserve"><value>Pagamentos</value></data>
+  <data name="Nav.PlanDelivery" xml:space="preserve"><value>Planejar rota</value></data>
+  <data name="Nav.Products" xml:space="preserve"><value>Produtos</value></data>
+  <data name="Nav.Receivables" xml:space="preserve"><value>Contas a receber</value></data>
+  <data name="Nav.Records" xml:space="preserve"><value>Cadastros</value></data>
+  <data name="Nav.Settings" xml:space="preserve"><value>Configurações</value></data>
+  <data name="Nav.SignIn" xml:space="preserve"><value>Entrar</value></data>
+  <data name="Nav.SignOut" xml:space="preserve"><value>Sair</value></data>
+  <data name="Nav.SignOutConfirm" xml:space="preserve"><value>Deseja sair da sua conta neste aparelho?</value></data>
+  <data name="Nav.Store" xml:space="preserve"><value>Loja</value></data>
+  <data name="Nav.StoreSettings" xml:space="preserve"><value>Dados da loja</value></data>
+  <data name="Nav.Users" xml:space="preserve"><value>Usuários</value></data>
+  <data name="Nav.Vehicles" xml:space="preserve"><value>Veículos</value></data>
+  <data name="Nav.ViewStore" xml:space="preserve"><value>Ver a loja</value></data>
+  <data name="NewOrder.Customer" xml:space="preserve"><value>Cliente</value></data>
+  <data name="NewOrder.Fee" xml:space="preserve"><value>Taxa de entrega</value></data>
+  <data name="NewOrder.InvoicingAllowed" xml:space="preserve"><value>Faturado em {0} dias</value></data>
+  <data name="NewOrder.Items" xml:space="preserve"><value>Itens</value></data>
+  <data name="NewOrder.NoItems" xml:space="preserve"><value>Nenhum item adicionado.</value></data>
+  <data name="NewOrder.OpenBalance" xml:space="preserve"><value>Em aberto: {0}</value></data>
+  <data name="NewOrder.Place" xml:space="preserve"><value>Lançar pedido</value></data>
+  <data name="NewOrder.Placed" xml:space="preserve"><value>Pedido lançado.</value></data>
+  <data name="NewOrder.SearchCustomer" xml:space="preserve"><value>Buscar cliente por nome, documento ou telefone</value></data>
+  <data name="NewOrder.SearchProduct" xml:space="preserve"><value>Buscar produto por nome ou SKU</value></data>
+  <data name="NewOrder.TimingHint.Invoiced" xml:space="preserve"><value>Gera um título a receber com vencimento conforme o prazo do cliente.</value></data>
+  <data name="NewOrder.TimingHint.OnDelivery" xml:space="preserve"><value>O motorista recebe na entrega (PIX, cartão ou dinheiro).</value></data>
+  <data name="NewOrder.TimingHint.Prepaid" xml:space="preserve"><value>O cliente paga online pelo link do pedido; ele é confirmado quando o pagamento for aprovado.</value></data>
+  <data name="NewOrder.Title" xml:space="preserve"><value>Novo pedido</value></data>
+  <data name="NotFound.Text" xml:space="preserve"><value>O endereço pode estar errado ou a página foi removida.</value></data>
+  <data name="NotFound.Title" xml:space="preserve"><value>Página não encontrada</value></data>
+  <data name="Orders.Cancel" xml:space="preserve"><value>Cancelar pedido</value></data>
+  <data name="Orders.CancelReason" xml:space="preserve"><value>Motivo do cancelamento</value></data>
+  <data name="Orders.CancelYes" xml:space="preserve"><value>Cancelar pedido</value></data>
+  <data name="Orders.Cancelled" xml:space="preserve"><value>Pedido cancelado.</value></data>
+  <data name="Orders.CancelledNotice" xml:space="preserve"><value>Pedido cancelado</value></data>
+  <data name="Orders.ChangedBy" xml:space="preserve"><value>por {0}</value></data>
+  <data name="Orders.Channel" xml:space="preserve"><value>Origem</value></data>
+  <data name="Orders.Customer" xml:space="preserve"><value>Cliente</value></data>
+  <data name="Orders.DeliveryFee" xml:space="preserve"><value>Taxa de entrega</value></data>
+  <data name="Orders.Directions" xml:space="preserve"><value>Como chegar</value></data>
+  <data name="Orders.Discount" xml:space="preserve"><value>Desconto</value></data>
+  <data name="Orders.DueDate" xml:space="preserve"><value>Vencimento</value></data>
+  <data name="Orders.FreeDelivery" xml:space="preserve"><value>Grátis</value></data>
+  <data name="Orders.GatewayAttempts" xml:space="preserve"><value>Tentativas online</value></data>
+  <data name="Orders.Item" xml:space="preserve"><value>Item</value></data>
+  <data name="Orders.Items" xml:space="preserve"><value>Itens</value></data>
+  <data name="Orders.MoveTo.Confirmed" xml:space="preserve"><value>Confirmar pedido</value></data>
+  <data name="Orders.MoveTo.Preparing" xml:space="preserve"><value>Iniciar separação</value></data>
+  <data name="Orders.MoveTo.ReadyForDelivery" xml:space="preserve"><value>Marcar como pronto</value></data>
+  <data name="Orders.Moved" xml:space="preserve"><value>Pedido movido para "{0}".</value></data>
+  <data name="Orders.NoHistory" xml:space="preserve"><value>Sem histórico.</value></data>
+  <data name="Orders.NoPayments" xml:space="preserve"><value>Nenhum pagamento registrado.</value></data>
+  <data name="Orders.NoneFound" xml:space="preserve"><value>Nenhum pedido encontrado</value></data>
+  <data name="Orders.Number" xml:space="preserve"><value>Pedido</value></data>
+  <data name="Orders.OpenDelivery" xml:space="preserve"><value>Abrir rota {0}</value></data>
+  <data name="Orders.OpenTracking" xml:space="preserve"><value>Abrir página de rastreio</value></data>
+  <data name="Orders.OrderNumber" xml:space="preserve"><value>Pedido #{0}</value></data>
+  <data name="Orders.Outstanding" xml:space="preserve"><value>A receber</value></data>
+  <data name="Orders.Paid" xml:space="preserve"><value>Pago</value></data>
+  <data name="Orders.PaidAt" xml:space="preserve"><value>Pago em</value></data>
+  <data name="Orders.Payment" xml:space="preserve"><value>Pagamento</value></data>
+  <data name="Orders.PaymentTiming" xml:space="preserve"><value>Forma de pagamento</value></data>
+  <data name="Orders.Payments" xml:space="preserve"><value>Pagamentos</value></data>
+  <data name="Orders.Placed" xml:space="preserve"><value>Pedido #{0} recebido.</value></data>
+  <data name="Orders.PlacedAt" xml:space="preserve"><value>Data</value></data>
+  <data name="Orders.PlacedOn" xml:space="preserve"><value>Feito em {0} · {1}</value></data>
+  <data name="Orders.Progress" xml:space="preserve"><value>Andamento do pedido</value></data>
+  <data name="Orders.Quantity" xml:space="preserve"><value>Qtd.</value></data>
+  <data name="Orders.SearchLabel" xml:space="preserve"><value>Buscar por número, cliente ou código de rastreio</value></data>
+  <data name="Orders.Status" xml:space="preserve"><value>Situação</value></data>
+  <data name="Orders.Subtotal" xml:space="preserve"><value>Subtotal</value></data>
+  <data name="Orders.Title" xml:space="preserve"><value>Pedidos</value></data>
+  <data name="Orders.Total" xml:space="preserve"><value>Total</value></data>
+  <data name="Orders.UnitPrice" xml:space="preserve"><value>Preço</value></data>
+  <data name="Password.Confirm" xml:space="preserve"><value>Confirme a nova senha</value></data>
+  <data name="Password.Current" xml:space="preserve"><value>Senha atual</value></data>
+  <data name="Password.New" xml:space="preserve"><value>Nova senha</value></data>
+  <data name="Password.Save" xml:space="preserve"><value>Alterar senha</value></data>
+  <data name="Password.Saved" xml:space="preserve"><value>Senha alterada. As outras sessões foram encerradas.</value></data>
+  <data name="Password.Title" xml:space="preserve"><value>Alterar senha</value></data>
+  <data name="Payment.CancelledTitle" xml:space="preserve"><value>Este pedido foi cancelado</value></data>
+  <data name="Payment.ChooseMethod" xml:space="preserve"><value>Escolha como pagar</value></data>
+  <data name="Payment.FollowOrder" xml:space="preserve"><value>Acompanhar pedido</value></data>
+  <data name="Payment.InitFailed" xml:space="preserve"><value>Não foi possível carregar o pagamento. Atualize a página e tente novamente.</value></data>
+  <data name="Payment.Loading" xml:space="preserve"><value>Carregando o pagamento seguro...</value></data>
+  <data name="Payment.OrderNumber" xml:space="preserve"><value>Pedido #{0}</value></data>
+  <data name="Payment.PaidText" xml:space="preserve"><value>Seu pedido foi confirmado e já está sendo preparado.</value></data>
+  <data name="Payment.PaidTitle" xml:space="preserve"><value>Pagamento aprovado!</value></data>
+  <data name="Payment.PixCopied" xml:space="preserve"><value>Código PIX copiado.</value></data>
+  <data name="Payment.PixCopy" xml:space="preserve"><value>Copiar código</value></data>
+  <data name="Payment.PixCopyPaste" xml:space="preserve"><value>PIX copia e cola</value></data>
+  <data name="Payment.PixExpired" xml:space="preserve"><value>O código PIX expirou. Gere um novo para pagar.</value></data>
+  <data name="Payment.PixExpires" xml:space="preserve"><value>O código vale até {0}.</value></data>
+  <data name="Payment.PixHint" xml:space="preserve"><value>Pague com PIX e o pedido é confirmado na hora.</value></data>
+  <data name="Payment.PixInstructions" xml:space="preserve"><value>Abra o app do seu banco, escolha PIX e leia o QR Code ou use o código copia e cola.</value></data>
+  <data name="Payment.PixQrAlt" xml:space="preserve"><value>QR Code do PIX</value></data>
+  <data name="Payment.PixScan" xml:space="preserve"><value>Pague com PIX</value></data>
+  <data name="Payment.PixWaiting" xml:space="preserve"><value>Aguardando a confirmação do pagamento...</value></data>
+  <data name="Payment.Rejected" xml:space="preserve"><value>Pagamento não aprovado. Confira os dados ou tente outra forma de pagamento.</value></data>
+  <data name="Payment.Title" xml:space="preserve"><value>Pagamento</value></data>
+  <data name="Payment.UnavailableText" xml:space="preserve"><value>A loja ainda não ativou o pagamento online. Fale com a loja para combinar o pagamento.</value></data>
+  <data name="Payment.UnavailableTitle" xml:space="preserve"><value>Pagamento online indisponível</value></data>
+  <data name="PaymentSettings.AccessToken" xml:space="preserve"><value>Access token</value></data>
+  <data name="PaymentSettings.AccessTokenHint" xml:space="preserve"><value>Fica guardado criptografado e nunca é exibido de novo.</value></data>
+  <data name="PaymentSettings.Configured" xml:space="preserve"><value>Configurado</value></data>
+  <data name="PaymentSettings.DefaultTerm" xml:space="preserve"><value>Prazo padrão</value></data>
+  <data name="PaymentSettings.DefaultTermHint" xml:space="preserve"><value>Usado quando o cliente não tem prazo próprio.</value></data>
+  <data name="PaymentSettings.Invoicing" xml:space="preserve"><value>Aceitar pedidos faturados (a prazo)</value></data>
+  <data name="PaymentSettings.InvoicingHint" xml:space="preserve"><value>Para clientes habilitados no cadastro. Os títulos aparecem em Contas a receber.</value></data>
+  <data name="PaymentSettings.MaxInstallments" xml:space="preserve"><value>Parcelas no cartão de crédito</value></data>
+  <data name="PaymentSettings.MaxInstallmentsHint" xml:space="preserve"><value>1 = somente à vista.</value></data>
+  <data name="PaymentSettings.Methods" xml:space="preserve"><value>Formas aceitas online</value></data>
+  <data name="PaymentSettings.NotConfigured" xml:space="preserve"><value>Não configurado</value></data>
+  <data name="PaymentSettings.Offline" xml:space="preserve"><value>Pagamento fora da plataforma</value></data>
+  <data name="PaymentSettings.Online" xml:space="preserve"><value>Pagamento online (Mercado Pago)</value></data>
+  <data name="PaymentSettings.OnlineHint" xml:space="preserve"><value>PIX e cartões direto na loja, sem sair da página (Checkout Transparente). Pegue as credenciais em Mercado Pago › Suas integrações › Credenciais.</value></data>
+  <data name="PaymentSettings.PayOnDelivery" xml:space="preserve"><value>Aceitar pagamento na entrega</value></data>
+  <data name="PaymentSettings.PayOnDeliveryHint" xml:space="preserve"><value>O motorista registra o valor recebido (PIX, cartão ou dinheiro) ao concluir a entrega.</value></data>
+  <data name="PaymentSettings.PixExpiration" xml:space="preserve"><value>Validade do código PIX</value></data>
+  <data name="PaymentSettings.PublicKey" xml:space="preserve"><value>Public key</value></data>
+  <data name="PaymentSettings.PublicKeyHint" xml:space="preserve"><value>Começa com APP_USR- (produção) ou TEST- (testes).</value></data>
+  <data name="PaymentSettings.Sandbox" xml:space="preserve"><value>Modo de testes (credenciais de teste)</value></data>
+  <data name="PaymentSettings.Saved" xml:space="preserve"><value>Configurações de pagamento salvas.</value></data>
+  <data name="PaymentSettings.SecretStored" xml:space="preserve"><value>Já existe um valor salvo. Deixe em branco para mantê-lo.</value></data>
+  <data name="PaymentSettings.Subtitle" xml:space="preserve"><value>Como os clientes podem pagar: online, na entrega ou faturado.</value></data>
+  <data name="PaymentSettings.Title" xml:space="preserve"><value>Pagamentos</value></data>
+  <data name="PaymentSettings.Webhook" xml:space="preserve"><value>Notificações (webhook)</value></data>
+  <data name="PaymentSettings.WebhookCopied" xml:space="preserve"><value>Endereço copiado.</value></data>
+  <data name="PaymentSettings.WebhookHint" xml:space="preserve"><value>Cadastre este endereço em Mercado Pago › Suas integrações › Webhooks, evento "Pagamentos".</value></data>
+  <data name="PaymentSettings.WebhookSecret" xml:space="preserve"><value>Assinatura secreta do webhook</value></data>
+  <data name="PaymentSettings.WebhookSecretHint" xml:space="preserve"><value>Valida as notificações de pagamento enviadas pelo Mercado Pago.</value></data>
+  <data name="PaymentSettings.WebhookUnavailable" xml:space="preserve"><value>O endereço de notificações aparece aqui quando a aplicação estiver publicada em um endereço HTTPS público. Enquanto isso, os pagamentos são confirmados pela consulta automática.</value></data>
+  <data name="Payments.Amount" xml:space="preserve"><value>Valor</value></data>
+  <data name="Payments.Method" xml:space="preserve"><value>Forma de pagamento</value></data>
+  <data name="Payments.PaidAt" xml:space="preserve"><value>Data do pagamento</value></data>
+  <data name="Payments.Reference" xml:space="preserve"><value>Referência (opcional)</value></data>
+  <data name="Payments.Register" xml:space="preserve"><value>Registrar pagamento</value></data>
+  <data name="Payments.RegisterFor" xml:space="preserve"><value>Pedido #{0} · a receber {1}</value></data>
+  <data name="Payments.Registered" xml:space="preserve"><value>Pagamento registrado.</value></data>
+  <data name="Plan.Capacity" xml:space="preserve"><value>Capacidade do veículo</value></data>
+  <data name="Plan.Create" xml:space="preserve"><value>Criar rota</value></data>
+  <data name="Plan.Created" xml:space="preserve"><value>Rota criada. O motorista já pode vê-la no app.</value></data>
+  <data name="Plan.Date" xml:space="preserve"><value>Data de saída</value></data>
+  <data name="Plan.MoveDown" xml:space="preserve"><value>Descer</value></data>
+  <data name="Plan.MoveUp" xml:space="preserve"><value>Subir</value></data>
+  <data name="Plan.NoOrders" xml:space="preserve"><value>Nenhum pedido aguardando entrega</value></data>
+  <data name="Plan.NoOrdersHint" xml:space="preserve"><value>Pedidos confirmados, em separação ou prontos aparecem aqui.</value></data>
+  <data name="Plan.OnDelivery" xml:space="preserve"><value>em rota</value></data>
+  <data name="Plan.Orders" xml:space="preserve"><value>Pedidos prontos ({0})</value></data>
+  <data name="Plan.OverCapacity" xml:space="preserve"><value>O peso estimado passa da capacidade do veículo.</value></data>
+  <data name="Plan.Run" xml:space="preserve"><value>Rota</value></data>
+  <data name="Plan.SelectedOrders" xml:space="preserve"><value>Pedidos selecionados</value></data>
+  <data name="Plan.Subtitle" xml:space="preserve"><value>Escolha os pedidos na ordem de entrega, o motorista e o veículo.</value></data>
+  <data name="Plan.Time" xml:space="preserve"><value>Horário</value></data>
+  <data name="Plan.Title" xml:space="preserve"><value>Planejar rota</value></data>
+  <data name="Plan.ToCollect" xml:space="preserve"><value>A receber na entrega</value></data>
+  <data name="Plan.Weight" xml:space="preserve"><value>Peso estimado</value></data>
+  <data name="Products.ActiveLabel" xml:space="preserve"><value>À venda na loja</value></data>
+  <data name="Products.Category" xml:space="preserve"><value>Categoria</value></data>
+  <data name="Products.CompareAtHint" xml:space="preserve"><value>Opcional, exibido riscado. Maior que o preço.</value></data>
+  <data name="Products.CompareAtPrice" xml:space="preserve"><value>Preço "de"</value></data>
+  <data name="Products.Created" xml:space="preserve"><value>Produto criado.</value></data>
+  <data name="Products.DeleteConfirm" xml:space="preserve"><value>Excluir o produto "{0}"? Os pedidos antigos continuam com o nome e o preço da época.</value></data>
+  <data name="Products.DeleteTitle" xml:space="preserve"><value>Excluir produto</value></data>
+  <data name="Products.Deleted" xml:space="preserve"><value>Produto excluído.</value></data>
+  <data name="Products.Description" xml:space="preserve"><value>Descrição</value></data>
+  <data name="Products.Edit" xml:space="preserve"><value>Editar produto</value></data>
+  <data name="Products.Featured" xml:space="preserve"><value>Destaque</value></data>
+  <data name="Products.FeaturedLabel" xml:space="preserve"><value>Destacar na loja</value></data>
+  <data name="Products.GoToCategories" xml:space="preserve"><value>Ir para Categorias</value></data>
+  <data name="Products.Image" xml:space="preserve"><value>Foto do produto</value></data>
+  <data name="Products.ImageHint" xml:space="preserve"><value>Quadrada, até 2 MB (PNG, JPG ou WEBP).</value></data>
+  <data name="Products.Name" xml:space="preserve"><value>Nome</value></data>
+  <data name="Products.NeedCategory" xml:space="preserve"><value>Cadastre uma categoria antes de criar produtos.</value></data>
+  <data name="Products.New" xml:space="preserve"><value>Novo produto</value></data>
+  <data name="Products.NoSku" xml:space="preserve"><value>Sem SKU</value></data>
+  <data name="Products.None" xml:space="preserve"><value>Nenhum produto encontrado</value></data>
+  <data name="Products.NoneHint" xml:space="preserve"><value>Ajuste os filtros ou cadastre um novo produto.</value></data>
+  <data name="Products.PerUnit" xml:space="preserve"><value>por {0}</value></data>
+  <data name="Products.Price" xml:space="preserve"><value>Preço</value></data>
+  <data name="Products.Product" xml:space="preserve"><value>Produto</value></data>
+  <data name="Products.Search" xml:space="preserve"><value>Buscar por nome ou SKU</value></data>
+  <data name="Products.Sku" xml:space="preserve"><value>SKU / código</value></data>
+  <data name="Products.Subtitle" xml:space="preserve"><value>O catálogo da loja: preços, unidades, fotos e destaques.</value></data>
+  <data name="Products.Title" xml:space="preserve"><value>Produtos</value></data>
+  <data name="Products.Unit" xml:space="preserve"><value>Unidade de venda</value></data>
+  <data name="Products.Weight" xml:space="preserve"><value>Peso</value></data>
+  <data name="Products.WeightHint" xml:space="preserve"><value>Por unidade, para a capacidade do veículo.</value></data>
+  <data name="Profile.Address" xml:space="preserve"><value>Endereço de entrega</value></data>
+  <data name="Profile.Document" xml:space="preserve"><value>CPF ou CNPJ</value></data>
+  <data name="Profile.DocumentHint" xml:space="preserve"><value>Opcional, para a nota fiscal.</value></data>
+  <data name="Profile.Email" xml:space="preserve"><value>E-mail</value></data>
+  <data name="Profile.EmailHint" xml:space="preserve"><value>O e-mail é o seu login e não pode ser alterado aqui.</value></data>
+  <data name="Profile.Name" xml:space="preserve"><value>Nome</value></data>
+  <data name="Profile.Personal" xml:space="preserve"><value>Dados pessoais</value></data>
+  <data name="Profile.Phone" xml:space="preserve"><value>Telefone / WhatsApp</value></data>
+  <data name="Profile.Saved" xml:space="preserve"><value>Dados atualizados.</value></data>
+  <data name="Profile.Title" xml:space="preserve"><value>Minha conta</value></data>
+  <data name="Receivables.DaysOverdue" xml:space="preserve"><value>{0} dia(s) de atraso</value></data>
+  <data name="Receivables.DueFrom" xml:space="preserve"><value>Vencimento de</value></data>
+  <data name="Receivables.DueTo" xml:space="preserve"><value>Vencimento até</value></data>
+  <data name="Receivables.None" xml:space="preserve"><value>Nada a receber com estes filtros</value></data>
+  <data name="Receivables.Overdue" xml:space="preserve"><value>Vencido</value></data>
+  <data name="Receivables.OverdueCount" xml:space="preserve"><value>Títulos vencidos</value></data>
+  <data name="Receivables.Search" xml:space="preserve"><value>Buscar por cliente ou pedido</value></data>
+  <data name="Receivables.Settle" xml:space="preserve"><value>Dar baixa</value></data>
+  <data name="Receivables.Subtitle" xml:space="preserve"><value>Pedidos faturados por vencimento.</value></data>
+  <data name="Receivables.Title" xml:space="preserve"><value>Contas a receber</value></data>
+  <data name="Receivables.TotalOpen" xml:space="preserve"><value>Total em aberto</value></data>
+  <data name="Receivables.TotalOverdue" xml:space="preserve"><value>Total vencido</value></data>
+  <data name="Register.ConfirmPassword" xml:space="preserve"><value>Confirme a senha</value></data>
+  <data name="Register.DocumentHint" xml:space="preserve"><value>Opcional, para a nota fiscal.</value></data>
+  <data name="Register.FullName" xml:space="preserve"><value>Nome completo</value></data>
+  <data name="Register.HaveAccount" xml:space="preserve"><value>Já tem conta?</value></data>
+  <data name="Register.PasswordHint" xml:space="preserve"><value>Mínimo de 8 caracteres, com letras minúsculas e números.</value></data>
+  <data name="Register.PasswordsDiffer" xml:space="preserve"><value>As senhas não conferem.</value></data>
+  <data name="Register.SignIn" xml:space="preserve"><value>Entrar</value></data>
+  <data name="Register.Submit" xml:space="preserve"><value>Criar conta</value></data>
+  <data name="Register.Subtitle" xml:space="preserve"><value>Cadastre-se para pedir e acompanhar suas entregas.</value></data>
+  <data name="Register.Title" xml:space="preserve"><value>Criar conta</value></data>
+  <data name="Role.Admin" xml:space="preserve"><value>Administrador</value></data>
+  <data name="Role.Customer" xml:space="preserve"><value>Cliente</value></data>
+  <data name="Role.Driver" xml:space="preserve"><value>Motorista</value></data>
+  <data name="Role.Manager" xml:space="preserve"><value>Gerente</value></data>
+  <data name="Store.Add" xml:space="preserve"><value>Adicionar {0} ao carrinho</value></data>
+  <data name="Store.AllCategories" xml:space="preserve"><value>Todos</value></data>
+  <data name="Store.CartBar" xml:space="preserve"><value>{0} item(ns) no carrinho</value></data>
+  <data name="Store.Contact.Directions" xml:space="preserve"><value>Como chegar</value></data>
+  <data name="Store.Contact.Title" xml:space="preserve"><value>Fale conosco</value></data>
+  <data name="Store.Contact.WhatsApp" xml:space="preserve"><value>WhatsApp {0}</value></data>
+  <data name="Store.DeliveryFee" xml:space="preserve"><value>Entrega {0}</value></data>
+  <data name="Store.Featured" xml:space="preserve"><value>Destaque</value></data>
+  <data name="Store.FreeAbove" xml:space="preserve"><value>Grátis acima de {0}</value></data>
+  <data name="Store.FreeDelivery" xml:space="preserve"><value>Entrega grátis</value></data>
+  <data name="Store.Less" xml:space="preserve"><value>Menos um</value></data>
+  <data name="Store.Loading" xml:space="preserve"><value>Carregando a loja...</value></data>
+  <data name="Store.MinimumOrder" xml:space="preserve"><value>Pedido mínimo {0}</value></data>
+  <data name="Store.More" xml:space="preserve"><value>Mais um</value></data>
+  <data name="Store.NothingFound" xml:space="preserve"><value>Nada encontrado</value></data>
+  <data name="Store.NothingFoundHint" xml:space="preserve"><value>Tente outra palavra ou escolha outra categoria.</value></data>
+  <data name="Store.SearchPlaceholder" xml:space="preserve"><value>O que você procura?</value></data>
+  <data name="StoreSettings.Address" xml:space="preserve"><value>Endereço da loja</value></data>
+  <data name="StoreSettings.AddressHint" xml:space="preserve"><value>Ponto de partida das rotas e centro dos mapas. Localize no mapa para os cálculos de distância.</value></data>
+  <data name="StoreSettings.Company" xml:space="preserve"><value>Empresa</value></data>
+  <data name="StoreSettings.Delivery" xml:space="preserve"><value>Entrega</value></data>
+  <data name="StoreSettings.DeliveryFee" xml:space="preserve"><value>Taxa de entrega</value></data>
+  <data name="StoreSettings.Document" xml:space="preserve"><value>CNPJ</value></data>
+  <data name="StoreSettings.Email" xml:space="preserve"><value>E-mail</value></data>
+  <data name="StoreSettings.EmptyDisables" xml:space="preserve"><value>Deixe em branco para não usar.</value></data>
+  <data name="StoreSettings.FreeAbove" xml:space="preserve"><value>Entrega grátis acima de</value></data>
+  <data name="StoreSettings.MinimumOrder" xml:space="preserve"><value>Pedido mínimo</value></data>
+  <data name="StoreSettings.Name" xml:space="preserve"><value>Nome da empresa</value></data>
+  <data name="StoreSettings.NameHint" xml:space="preserve"><value>Usado quando a identidade visual não define outro nome.</value></data>
+  <data name="StoreSettings.OpeningHours" xml:space="preserve"><value>Horário de atendimento</value></data>
+  <data name="StoreSettings.OpeningHoursHint" xml:space="preserve"><value>Ex.: Seg a Sex, 8h às 18h</value></data>
+  <data name="StoreSettings.Phone" xml:space="preserve"><value>Telefone</value></data>
+  <data name="StoreSettings.Saved" xml:space="preserve"><value>Dados da loja salvos.</value></data>
+  <data name="StoreSettings.Subtitle" xml:space="preserve"><value>Contatos, endereço e regras de entrega exibidos para os clientes.</value></data>
+  <data name="StoreSettings.TimeZone" xml:space="preserve"><value>Fuso horário</value></data>
+  <data name="StoreSettings.Title" xml:space="preserve"><value>Dados da loja</value></data>
+  <data name="StoreSettings.WhatsApp" xml:space="preserve"><value>WhatsApp</value></data>
+  <data name="Theme.Dark" xml:space="preserve"><value>Tema: escuro</value></data>
+  <data name="Theme.Light" xml:space="preserve"><value>Tema: claro</value></data>
+  <data name="Theme.System" xml:space="preserve"><value>Tema: automático (sistema)</value></data>
+  <data name="Tracking.CopyLink" xml:space="preserve"><value>Copiar link</value></data>
+  <data name="Tracking.GoToStore" xml:space="preserve"><value>Ir para a loja</value></data>
+  <data name="Tracking.History" xml:space="preserve"><value>Histórico</value></data>
+  <data name="Tracking.LinkCopied" xml:space="preserve"><value>Link copiado.</value></data>
+  <data name="Tracking.Live" xml:space="preserve"><value>Ao vivo</value></data>
+  <data name="Tracking.NotFound" xml:space="preserve"><value>Pedido não encontrado</value></data>
+  <data name="Tracking.NotFoundHint" xml:space="preserve"><value>Confira o link de rastreio que você recebeu.</value></data>
+  <data name="Tracking.OrderNumber" xml:space="preserve"><value>Pedido #{0}</value></data>
+  <data name="Tracking.PageTitle" xml:space="preserve"><value>Pedido #{0}</value></data>
+  <data name="Tracking.StopsBefore" xml:space="preserve"><value>{0} entrega(s) antes da sua</value></data>
+  <data name="Tracking.TalkToStore" xml:space="preserve"><value>Falar com a loja</value></data>
+  <data name="Tracking.Title" xml:space="preserve"><value>Acompanhar pedido</value></data>
+  <data name="Tracking.UpdatedAt" xml:space="preserve"><value>Atualizado às {0}</value></data>
+  <data name="Tracking.YouAreNext" xml:space="preserve"><value>Você é a próxima entrega!</value></data>
+  <data name="Tracking.YourAddress" xml:space="preserve"><value>Seu endereço</value></data>
+  <data name="Units.Box" xml:space="preserve"><value>Caixa (cx)</value></data>
+  <data name="Units.Kilogram" xml:space="preserve"><value>Quilo (kg)</value></data>
+  <data name="Units.Liter" xml:space="preserve"><value>Litro (L)</value></data>
+  <data name="Units.Pack" xml:space="preserve"><value>Pacote (pct)</value></data>
+  <data name="Units.Unit" xml:space="preserve"><value>Unidade (un)</value></data>
+  <data name="Upload.Choose" xml:space="preserve"><value>Enviar imagem</value></data>
+  <data name="Upload.Sending" xml:space="preserve"><value>Enviando...</value></data>
+  <data name="Upload.TooLarge" xml:space="preserve"><value>A imagem passa de 2 MB.</value></data>
+  <data name="Users.ActiveLabel" xml:space="preserve"><value>Usuário ativo</value></data>
+  <data name="Users.Created" xml:space="preserve"><value>Usuário criado.</value></data>
+  <data name="Users.DriverLicense" xml:space="preserve"><value>Carteira de motorista (CNH)</value></data>
+  <data name="Users.Edit" xml:space="preserve"><value>Editar usuário</value></data>
+  <data name="Users.Email" xml:space="preserve"><value>E-mail</value></data>
+  <data name="Users.EmailHint" xml:space="preserve"><value>É o login do usuário.</value></data>
+  <data name="Users.FullName" xml:space="preserve"><value>Nome completo</value></data>
+  <data name="Users.GeneratePassword" xml:space="preserve"><value>Gerar senha</value></data>
+  <data name="Users.InactiveLabel" xml:space="preserve"><value>Usuário inativo (não consegue entrar)</value></data>
+  <data name="Users.LastLogin" xml:space="preserve"><value>Último acesso</value></data>
+  <data name="Users.LicenseCategory" xml:space="preserve"><value>Categoria</value></data>
+  <data name="Users.LicenseExpiresOn" xml:space="preserve"><value>Validade</value></data>
+  <data name="Users.LicenseNumber" xml:space="preserve"><value>Número da CNH</value></data>
+  <data name="Users.NeverSignedIn" xml:space="preserve"><value>Nunca entrou</value></data>
+  <data name="Users.New" xml:space="preserve"><value>Novo usuário</value></data>
+  <data name="Users.None" xml:space="preserve"><value>Nenhum usuário encontrado</value></data>
+  <data name="Users.Password" xml:space="preserve"><value>Senha inicial</value></data>
+  <data name="Users.PasswordCopied" xml:space="preserve"><value>Senha copiada.</value></data>
+  <data name="Users.PasswordReset" xml:space="preserve"><value>Nova senha definida para {0}.</value></data>
+  <data name="Users.PasswordResetHint" xml:space="preserve"><value>Envie a senha por um canal seguro e peça para a pessoa trocá-la no primeiro acesso.</value></data>
+  <data name="Users.Phone" xml:space="preserve"><value>Telefone</value></data>
+  <data name="Users.ResetPassword" xml:space="preserve"><value>Redefinir senha</value></data>
+  <data name="Users.ResetPasswordFor" xml:space="preserve"><value>Definir uma nova senha para {0}. Todas as sessões dele serão encerradas.</value></data>
+  <data name="Users.Role" xml:space="preserve"><value>Perfil</value></data>
+  <data name="Users.RoleHint.Admin" xml:space="preserve"><value>Acesso total, inclusive configurações e usuários.</value></data>
+  <data name="Users.RoleHint.Customer" xml:space="preserve"><value>Compra na loja e acompanha os próprios pedidos.</value></data>
+  <data name="Users.RoleHint.Driver" xml:space="preserve"><value>Usa o app do motorista para fazer as entregas.</value></data>
+  <data name="Users.RoleHint.Manager" xml:space="preserve"><value>Pedidos, entregas e cadastros (sem configurações).</value></data>
+  <data name="Users.Search" xml:space="preserve"><value>Buscar por nome ou e-mail</value></data>
+  <data name="Users.SelfHint" xml:space="preserve"><value>Você não pode alterar o perfil nem desativar o seu próprio usuário.</value></data>
+  <data name="Users.ShowPassword" xml:space="preserve"><value>Mostrar senha</value></data>
+  <data name="Users.Subtitle" xml:space="preserve"><value>Quem acessa o sistema: equipe, motoristas e clientes.</value></data>
+  <data name="Users.Title" xml:space="preserve"><value>Usuários</value></data>
+  <data name="Users.User" xml:space="preserve"><value>Usuário</value></data>
+  <data name="Users.You" xml:space="preserve"><value>você</value></data>
+  <data name="Validation.Required" xml:space="preserve"><value>Obrigatório</value></data>
+  <data name="Vehicles.ActiveLabel" xml:space="preserve"><value>Disponível para rotas</value></data>
+  <data name="Vehicles.Capacity" xml:space="preserve"><value>Capacidade de carga</value></data>
+  <data name="Vehicles.CapacityHint" xml:space="preserve"><value>Usada para alertar no planejamento das rotas.</value></data>
+  <data name="Vehicles.CapacityShort" xml:space="preserve"><value>até {0} kg</value></data>
+  <data name="Vehicles.Created" xml:space="preserve"><value>Veículo cadastrado.</value></data>
+  <data name="Vehicles.DeleteConfirm" xml:space="preserve"><value>Excluir o veículo {0}? As rotas antigas continuam no histórico.</value></data>
+  <data name="Vehicles.DeleteTitle" xml:space="preserve"><value>Excluir veículo</value></data>
+  <data name="Vehicles.Deleted" xml:space="preserve"><value>Veículo excluído.</value></data>
+  <data name="Vehicles.Edit" xml:space="preserve"><value>Editar veículo</value></data>
+  <data name="Vehicles.Model" xml:space="preserve"><value>Modelo</value></data>
+  <data name="Vehicles.New" xml:space="preserve"><value>Novo veículo</value></data>
+  <data name="Vehicles.None" xml:space="preserve"><value>Nenhum veículo cadastrado</value></data>
+  <data name="Vehicles.NoneHint" xml:space="preserve"><value>Cadastre os carros, motos, vans e caminhões usados nas entregas.</value></data>
+  <data name="Vehicles.Notes" xml:space="preserve"><value>Observações</value></data>
+  <data name="Vehicles.Plate" xml:space="preserve"><value>Placa</value></data>
+  <data name="Vehicles.PlateHint" xml:space="preserve"><value>Ex.: ABC1D23</value></data>
+  <data name="Vehicles.Subtitle" xml:space="preserve"><value>A frota usada nas entregas e a capacidade de cada veículo.</value></data>
+  <data name="Vehicles.Title" xml:space="preserve"><value>Veículos</value></data>
+  <data name="Vehicles.Type" xml:space="preserve"><value>Tipo</value></data>
+  <data name="Nav.Reports" xml:space="preserve"><value>Relatórios</value></data>
+  <data name="Reports.Title" xml:space="preserve"><value>Relatórios</value></data>
+  <data name="Reports.Subtitle" xml:space="preserve"><value>Acompanhe as vendas, conheça seus clientes e avalie a operação.</value></data>
+  <data name="Reports.Summary" xml:space="preserve"><value>Resumo</value></data>
+  <data name="Reports.Period" xml:space="preserve"><value>Período</value></data>
+  <data name="Reports.From" xml:space="preserve"><value>Data inicial</value></data>
+  <data name="Reports.To" xml:space="preserve"><value>Data final</value></data>
+  <data name="Reports.Channel" xml:space="preserve"><value>Canal do pedido</value></data>
+  <data name="Reports.AllChannels" xml:space="preserve"><value>Todos os canais</value></data>
+  <data name="Reports.Apply" xml:space="preserve"><value>Aplicar filtros</value></data>
+  <data name="Reports.Export" xml:space="preserve"><value>Exportar CSV</value></data>
+  <data name="Reports.ExportFailed" xml:space="preserve"><value>Não foi possível baixar o relatório. Tente novamente.</value></data>
+  <data name="Reports.Today" xml:space="preserve"><value>Hoje</value></data>
+  <data name="Reports.Last7Days" xml:space="preserve"><value>Últimos 7 dias</value></data>
+  <data name="Reports.Last30Days" xml:space="preserve"><value>Últimos 30 dias</value></data>
+  <data name="Reports.ThisMonth" xml:space="preserve"><value>Este mês</value></data>
+  <data name="Reports.InvalidRange" xml:space="preserve"><value>Informe as duas datas, com a data inicial anterior ou igual à final.</value></data>
+  <data name="Reports.RangeTooLong" xml:space="preserve"><value>Selecione um período de no máximo 366 dias.</value></data>
+  <data name="Reports.Loading" xml:space="preserve"><value>Carregando relatórios</value></data>
+  <data name="Reports.LoadingFailed" xml:space="preserve"><value>Não foi possível atualizar o relatório. Confira a conexão e tente novamente.</value></data>
+  <data name="Reports.Retry" xml:space="preserve"><value>Tentar novamente</value></data>
+  <data name="Reports.FiltersChanged" xml:space="preserve"><value>Filtros alterados. Clique em Aplicar filtros para atualizar os dados e a exportação.</value></data>
+  <data name="Reports.GeneratedAt" xml:space="preserve"><value>Atualizado em</value></data>
+  <data name="Reports.Overview" xml:space="preserve"><value>Visão geral</value></data>
+  <data name="Reports.Orders" xml:space="preserve"><value>Pedidos</value></data>
+  <data name="Reports.ValidOrders" xml:space="preserve"><value>Pedidos válidos</value></data>
+  <data name="Reports.TotalOrdersHint" xml:space="preserve"><value>{0} pedidos no total, incluindo cancelados</value></data>
+  <data name="Reports.CancelledOrders" xml:space="preserve"><value>Pedidos cancelados</value></data>
+  <data name="Reports.CancelledOrdersHint" xml:space="preserve"><value>{0} pedidos cancelados</value></data>
+  <data name="Reports.Revenue" xml:space="preserve"><value>Valor em vendas</value></data>
+  <data name="Reports.AverageTicket" xml:space="preserve"><value>Ticket médio</value></data>
+  <data name="Reports.ActiveCustomers" xml:space="preserve"><value>Clientes que compraram</value></data>
+  <data name="Reports.Semantics" xml:space="preserve"><value>Vendas pela data do pedido, no fuso da loja. Cancelados são excluídos dos valores, do ticket médio e dos rankings.</value></data>
+  <data name="Reports.DailySales" xml:space="preserve"><value>Evolução das vendas</value></data>
+  <data name="Reports.SalesDaily" xml:space="preserve"><value>Por dia</value></data>
+  <data name="Reports.SalesWeekly" xml:space="preserve"><value>Por semana</value></data>
+  <data name="Reports.SalesMonthly" xml:space="preserve"><value>Por mês</value></data>
+  <data name="Reports.ChartPoint" xml:space="preserve"><value>{0} a {1}: {2} pedidos · {3}</value></data>
+  <data name="Reports.ChartHint" xml:space="preserve"><value>Consulte os valores de cada dia na aba Pedidos.</value></data>
+  <data name="Reports.Empty" xml:space="preserve"><value>Nenhuma venda no período</value></data>
+  <data name="Reports.EmptyHint" xml:space="preserve"><value>Experimente outro período ou canal para consultar as vendas.</value></data>
+  <data name="Reports.OrdersByStatus" xml:space="preserve"><value>Pedidos por situação</value></data>
+  <data name="Reports.OrdersByChannel" xml:space="preserve"><value>Vendas por canal</value></data>
+  <data name="Reports.Share" xml:space="preserve"><value>Participação nas vendas</value></data>
+  <data name="Reports.CancelRate" xml:space="preserve"><value>Taxa de cancelamento</value></data>
+  <data name="Reports.Customers" xml:space="preserve"><value>Clientes</value></data>
+  <data name="Reports.NewCustomers" xml:space="preserve"><value>Clientes novos</value></data>
+  <data name="Reports.ReturningCustomers" xml:space="preserve"><value>Clientes recorrentes</value></data>
+  <data name="Reports.CustomerHint" xml:space="preserve"><value>Novos: primeira compra válida no período. Recorrentes: já compraram antes do período. O histórico considera todos os canais.</value></data>
+  <data name="Reports.TopCustomers" xml:space="preserve"><value>Clientes com maior valor em compras</value></data>
+  <data name="Reports.TopCustomersHint" xml:space="preserve"><value>Os 10 primeiros por valor em compras, considerando pedidos válidos do período e canal selecionados.</value></data>
+  <data name="Reports.CustomerType" xml:space="preserve"><value>Tipo de cliente</value></data>
+  <data name="Reports.LastOrder" xml:space="preserve"><value>Último pedido no período</value></data>
+  <data name="Reports.Products" xml:space="preserve"><value>Produtos</value></data>
+  <data name="Reports.TopProducts" xml:space="preserve"><value>Produtos com maior valor em vendas</value></data>
+  <data name="Reports.TopProductsHint" xml:space="preserve"><value>Os 10 primeiros por valor bruto dos itens vendidos. Descontos do pedido e taxas de entrega não entram neste ranking.</value></data>
+  <data name="Reports.Quantity" xml:space="preserve"><value>Quantidade vendida</value></data>
+  <data name="Reports.GrossRevenue" xml:space="preserve"><value>Valor bruto dos itens</value></data>
+  <data name="Reports.Financial" xml:space="preserve"><value>Financeiro</value></data>
+  <data name="Reports.AmountPaid" xml:space="preserve"><value>Valor recebido</value></data>
+  <data name="Reports.OutstandingAmount" xml:space="preserve"><value>Saldo a receber</value></data>
+  <data name="Reports.OverdueAmount" xml:space="preserve"><value>Saldo faturado vencido</value></data>
+  <data name="Reports.OverdueCount" xml:space="preserve"><value>Pedidos faturados vencidos</value></data>
+  <data name="Reports.OverdueHint" xml:space="preserve"><value>{0} pedidos faturados vencidos</value></data>
+  <data name="Reports.FinancialHint" xml:space="preserve"><value>Situação atual dos pedidos feitos no período selecionado. Os recebimentos podem ter ocorrido em outras datas. Vencidos: pedidos faturados com saldo e vencimento anterior a hoje, no fuso da loja.</value></data>
+  <data name="Reports.PaymentsByTiming" xml:space="preserve"><value>Recebimentos por condição de pagamento</value></data>
+  <data name="Reports.PaymentsByStatus" xml:space="preserve"><value>Recebimentos por situação de pagamento</value></data>
+  <data name="Reports.Deliveries" xml:space="preserve"><value>Entregas</value></data>
+  <data name="Reports.DeliveriesHint" xml:space="preserve"><value>Rotas pela data programada, em todos os canais. O filtro de canal não se aplica às entregas. Paradas de rotas canceladas são excluídas.</value></data>
+  <data name="Reports.Runs" xml:space="preserve"><value>Rotas programadas</value></data>
+  <data name="Reports.DeliveredStops" xml:space="preserve"><value>Paradas entregues</value></data>
+  <data name="Reports.FailedStops" xml:space="preserve"><value>Tentativas sem sucesso</value></data>
+  <data name="Reports.PendingStops" xml:space="preserve"><value>Paradas pendentes</value></data>
+  <data name="Reports.DeliverySuccess" xml:space="preserve"><value>Sucesso nas tentativas</value></data>
+  <data name="Reports.DeliverySuccessHint" xml:space="preserve"><value>Entregues ÷ (entregues + sem sucesso), em todos os canais</value></data>
+  <data name="Reports.Drivers" xml:space="preserve"><value>Desempenho por motorista</value></data>
+  <data name="Reports.PlannedRuns" xml:space="preserve"><value>{0} planejadas</value></data>
+  <data name="Reports.InProgressRuns" xml:space="preserve"><value>{0} em andamento</value></data>
+  <data name="Reports.CompletedRuns" xml:space="preserve"><value>{0} concluídas</value></data>
+  <data name="Reports.CancelledRuns" xml:space="preserve"><value>{0} canceladas</value></data>
+  <data name="Reports.NoDeliveries" xml:space="preserve"><value>Nenhuma rota programada no período</value></data>
+  <data name="Reports.RowsPerPage" xml:space="preserve"><value>Linhas por página</value></data>
+  <data name="Reports.PageInfo" xml:space="preserve"><value>{first_item}–{last_item} de {all_items}</value></data>
+  <data name="Reports.NoOrders" xml:space="preserve"><value>Nenhum pedido no período</value></data>
+</root>

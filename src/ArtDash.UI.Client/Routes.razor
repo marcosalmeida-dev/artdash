@@ -1,0 +1,15 @@
+@* Interactive router (InteractiveServer, prerender off). [Authorize] on a page is enforced here, in the
+   circuit; the page endpoints themselves are anonymous because the server never holds the user's token. *@
+<Router AppAssembly="typeof(Routes).Assembly" NotFoundPage="typeof(Pages.NotFound)">
+    <Found Context="routeData">
+        <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(MainLayout)">
+            <Authorizing>
+                <LoadingScreen />
+            </Authorizing>
+            <NotAuthorized>
+                <RedirectWhenDenied />
+            </NotAuthorized>
+        </AuthorizeRouteView>
+        <FocusOnNavigate RouteData="routeData" Selector="h1" />
+    </Found>
+</Router>

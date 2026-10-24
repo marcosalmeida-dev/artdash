@@ -1,0 +1,33 @@
+@inherits BrandAwareComponent
+
+@* The tenant's wordmark, or its icon + name when no logo was uploaded. "console" uses the dark-background logo. *@
+<a href="@(Href ?? "/")" class="ad-brand ad-brand--@Variant">
+    @if (!string.IsNullOrWhiteSpace(Logo))
+    {
+        <img class="ad-brand__logo" src="@Logo" alt="@Brand.Current.DisplayName" />
+    }
+    else
+    {
+        <img class="ad-brand__mark" src="@(Brand.Current.IconUrl ?? "/img/icon.svg")" alt="" />
+        <span class="ad-brand__text">
+            <span class="ad-brand__name">@Brand.Current.DisplayName</span>
+            @if (ShowTagline && !string.IsNullOrWhiteSpace(Brand.Current.Tagline))
+            {
+                <span class="ad-brand__sub">@Brand.Current.Tagline</span>
+            }
+        </span>
+    }
+</a>
+
+@code {
+    /// <summary>"store" (light background) or "console" (dark background).</summary>
+    [Parameter] public string Variant { get; set; } = "store";
+
+    [Parameter] public string? Href { get; set; }
+
+    [Parameter] public bool ShowTagline { get; set; }
+
+    private string? Logo => Variant == "console"
+        ? Brand.Current.LogoDarkUrl ?? Brand.Current.LogoUrl
+        : Brand.Current.LogoUrl;
+}

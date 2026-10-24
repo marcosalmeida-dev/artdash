@@ -1,0 +1,47 @@
+@* Items and totals of an order. *@
+<table class="ad-items">
+    <thead>
+        <tr>
+            <th>@L["Orders.Item"]</th>
+            <th class="text-right">@L["Orders.Quantity"]</th>
+            <th class="text-right ad-hide-xs">@L["Orders.UnitPrice"]</th>
+            <th class="text-right">@L["Orders.Total"]</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Order.Items)
+        {
+            <tr>
+                <td>
+                    <span class="ad-items__name">@item.ProductName</span>
+                    @if (!string.IsNullOrWhiteSpace(item.Sku))
+                    {
+                        <span class="ad-items__sku">@item.Sku</span>
+                    }
+                </td>
+                <td class="text-right">@Fmt.Quantity(item.Quantity) @L.Enum(item.Unit)</td>
+                <td class="text-right ad-hide-xs">@Fmt.Money(item.UnitPrice)</td>
+                <td class="text-right">@Fmt.Money(item.Total)</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<dl class="ad-totals">
+    <div><dt>@L["Orders.Subtotal"]</dt><dd>@Fmt.Money(Order.Subtotal)</dd></div>
+    <div><dt>@L["Orders.DeliveryFee"]</dt><dd>@(Order.DeliveryFee == 0 ? L["Orders.FreeDelivery"] : Fmt.Money(Order.DeliveryFee))</dd></div>
+    @if (Order.Discount > 0)
+    {
+        <div><dt>@L["Orders.Discount"]</dt><dd>- @Fmt.Money(Order.Discount)</dd></div>
+    }
+    <div class="ad-totals__grand"><dt>@L["Orders.Total"]</dt><dd>@Fmt.Money(Order.Total)</dd></div>
+    @if (Order.AmountPaid > 0 && Order.Outstanding > 0)
+    {
+        <div><dt>@L["Orders.Paid"]</dt><dd>@Fmt.Money(Order.AmountPaid)</dd></div>
+        <div class="ad-totals__due"><dt>@L["Orders.Outstanding"]</dt><dd>@Fmt.Money(Order.Outstanding)</dd></div>
+    }
+</dl>
+
+@code {
+    [Parameter, EditorRequired] public OrderDto Order { get; set; } = default!;
+}

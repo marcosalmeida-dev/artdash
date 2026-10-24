@@ -1,0 +1,190 @@
+@page "/rastreio/{Code}"
+@implements IAsyncDisposable
+@inject TrackingApi TrackingApi
+@inject StoreState Store
+@inject RealtimeClient Realtime
+@inject BrowserUtil Browser
+@inject UiActions Ui
+@inject NavigationManager Navigation
+
+@* Public tracking page: the link is the credential (unguessable code). Live via SignalR. *@
+<PageTitle>@(_tracking is null ? L["Tracking.Title"] : L["Tracking.PageTitle", _tracking.Number])</PageTitle>
+
+@if (_loading)
+{
+    <LoadingScreen />
+}
+else if (_tracking is null)
+{
+    <div class="ad-page ad-page--narrow">
+        <EmptyState Icon="@Icons.Material.Rounded.SearchOff" Title="@L["Tracking.NotFound"]" Text="@L["Tracking.NotFoundHint"]">
+            <MudButton Href="/" Variant="Variant.Filled" Color="Color.Primary" DropShadow="false">@L["Tracking.GoToStore"]</MudButton>
+        </EmptyState>
+    </div>
+}
+else
+{
+    <section class="tr-hero">
+        <div class="tr-hero__inner">
+            <span class="tr-hero__store">@_tracking.StoreName</span>
+            <h1 class="tr-hero__title">@L["Tracking.OrderNumber", _tracking.Number]</h1>
+            <div class="tr-hero__status">
+                <StatusChip Text="@L.Enum(_tracking.Status)" Color="@StatusStyles.For(_tracking.Status)" Icon="@StatusStyles.Icon(_tracking.Status)" Variant="Variant.Filled" />
+                @if (_live)
+                {
+                    <span class="tr-live"><span class="tr-live__dot"></span>@L["Tracking.Live"]</span>
+                }
+            </div>
+        </div>
+    </section>
+
+    <div class="ad-page ad-page--narrow tr-body">
+        <section class="ad-card">
+            <OrderProgress Status="_tracking.Status" />
+            @if (_tracking.Status == OrderStatus.OutForDelivery && _tracking.StopsBefore is { } before)
+            {
+                <p class="tr-eta">
+                    <MudIcon Icon="@Icons.Material.Rounded.Route" Size="Size.Small" />
+                    @(before == 0 ? L["Tracking.YouAreNext"] : L["Tracking.StopsBefore", before])
+                </p>
+            }
+        </section>
+
+        @if (ShowMap)
+        {
+            <section class="ad-card ad-card--flush">
+                <LeafletMap @ref="_map" Markers="_markers" Height="320px" AutoFit="false" />
+                <div class="tr-driver">
+                    <MudIcon Icon="@StatusStyles.Icon(_tracking.VehicleType ?? VehicleType.Car)" />
+                    <span>
+                        @if (!string.IsNullOrWhiteSpace(_tracking.DriverName))
+                        {
+                            <strong>@_tracking.DriverName</strong>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(_tracking.VehiclePlate))
+                        {
+                            <span class="ad-muted"> · @_tracking.VehiclePlate</span>
+                        }
+                    </span>
+                    @if (_tracking.VehiclePositionAt is { } at)
+                    {
+                        <span class="ad-muted ad-small">@L["Tracking.UpdatedAt", Fmt.Time(Store.ToLocal(at))]</span>
+                    }
+                </div>
+            </section>
+        }
+
+        <section class="ad-card">
+            <h2 class="ad-card__title">@L["Tracking.History"]</h2>
+            <OrderTimeline History="_tracking.History" />
+        </section>
+
+        <div class="tr-actions">
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Rounded.Link" OnClick="CopyLinkAsync">
+                @L["Tracking.CopyLink"]
+            </MudButton>
+            @if (!string.IsNullOrWhiteSpace(Store.Info.WhatsApp))
+            {
+                <MudButton Variant="Variant.Text" Color="Color.Success" StartIcon="@Icons.Custom.Brands.WhatsApp"
+                           Href="@Fmt.WhatsAppLink(Store.Info.WhatsApp)" Target="_blank">@L["Tracking.TalkToStore"]</MudButton>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string Code { get; set; } = string.Empty;
+
+    private OrderTrackingDto? _tracking;
+    private IReadOnlyList<MapMarker> _markers = [];
+    private LeafletMap? _map;
+    private bool _loading = true;
+    private bool _live;
+
+    private bool ShowMap =>
+        _tracking is { Status: OrderStatus.OutForDelivery, VehicleLatitude: not null, VehicleLongitude: not null };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+        _loading = false;
+
+        if (_tracking is not null)
+        {
+            Realtime.OrderChanged += OnOrderChangedAsync;
+            Realtime.PositionUpdated += OnPositionUpdatedAsync;
+            _live = await Realtime.TrackOrderAsync(Code);
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        _tracking = await Ui.LoadAsync(() => TrackingApi.GetAsync(Code));
+        BuildMarkers();
+    }
+
+    private void BuildMarkers()
+    {
+        var markers = new List<MapMarker>();
+        if (_tracking is { VehicleLatitude: { } vlat, VehicleLongitude: { } vlng })
+        {
+            markers.Add(new MapMarker("vehicle", vlat, vlng, MapMarkerKinds.Vehicle, _tracking.VehiclePlate, _tracking.DriverName));
+        }
+
+        if (_tracking is { DestinationLatitude: { } dlat, DestinationLongitude: { } dlng })
+        {
+            markers.Add(new MapMarker("destination", dlat, dlng, MapMarkerKinds.Destination, "★", L["Tracking.YourAddress"]));
+        }
+
+        _markers = markers;
+    }
+
+    private Task OnOrderChangedAsync(OrderChangedMessage message) => InvokeAsync(async () =>
+    {
+        await LoadAsync();
+        StateHasChanged();
+    });
+
+    private Task OnPositionUpdatedAsync(VehiclePositionDto position) => InvokeAsync(async () =>
+    {
+        if (_tracking is null)
+        {
+            return;
+        }
+
+        var firstPosition = _tracking.VehicleLatitude is null;
+        _tracking = _tracking with
+        {
+            VehicleLatitude = position.Latitude,
+            VehicleLongitude = position.Longitude,
+            VehiclePositionAt = position.RecordedAt
+        };
+
+        if (firstPosition || _map is null)
+        {
+            BuildMarkers();
+        }
+        else
+        {
+            await _map.UpsertMarkerAsync(new MapMarker("vehicle", position.Latitude, position.Longitude,
+                MapMarkerKinds.Vehicle, position.VehiclePlate, position.DriverName));
+        }
+
+        StateHasChanged();
+    });
+
+    private async Task CopyLinkAsync()
+    {
+        if (await Browser.CopyAsync(Navigation.Uri))
+        {
+            Ui.Success(L["Tracking.LinkCopied"]);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Realtime.OrderChanged -= OnOrderChangedAsync;
+        Realtime.PositionUpdated -= OnPositionUpdatedAsync;
+        await Realtime.StopTrackingAsync(Code);
+    }
+}

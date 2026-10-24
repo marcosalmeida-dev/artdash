@@ -1,0 +1,157 @@
+@inject AddressLookup Lookup
+
+@*
+    Brazilian address form bound to an AddressDto (edited in place). The CEP fills street, district, city
+    and state (ViaCEP); "Localizar no mapa" geocodes the address (OpenStreetMap) so it shows on the
+    delivery maps.
+*@
+<div class="ad-address">
+    <MudGrid Spacing="2">
+        <MudItem xs="12" sm="4">
+            <MudTextField T="string" Value="@Address.ZipCode" ValueChanged="OnZipCodeChanged"
+                          Label="@L["Address.ZipCode"]" Variant="Variant.Outlined" Margin="Margin.Dense"
+                          Required="Required" RequiredError="@L["Validation.Required"]" ReadOnly="ReadOnly"
+                          MaxLength="9"
+                          Adornment="Adornment.End"
+                          AdornmentIcon="@(_searchingCep ? Icons.Material.Rounded.HourglassTop : Icons.Material.Rounded.Search)"
+                          OnAdornmentClick="SearchCepAsync" />
+        </MudItem>
+        <MudItem xs="12" sm="8">
+            <MudTextField T="string" @bind-Value="Address.Street" @bind-Value:after="NotifyAsync" Label="@L["Address.Street"]"
+                          Variant="Variant.Outlined" Margin="Margin.Dense" Required="Required"
+                          RequiredError="@L["Validation.Required"]" ReadOnly="ReadOnly" MaxLength="150" />
+        </MudItem>
+        <MudItem xs="4" sm="3">
+            <MudTextField T="string" @bind-Value="Address.Number" @bind-Value:after="NotifyAsync" Label="@L["Address.Number"]"
+                          Variant="Variant.Outlined" Margin="Margin.Dense" Required="Required"
+                          RequiredError="@L["Validation.Required"]" ReadOnly="ReadOnly" MaxLength="20" />
+        </MudItem>
+        <MudItem xs="8" sm="5">
+            <MudTextField T="string" @bind-Value="Address.Complement" @bind-Value:after="NotifyAsync" Label="@L["Address.Complement"]"
+                          Variant="Variant.Outlined" Margin="Margin.Dense" ReadOnly="ReadOnly" MaxLength="100" />
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudTextField T="string" @bind-Value="Address.District" @bind-Value:after="NotifyAsync" Label="@L["Address.District"]"
+                          Variant="Variant.Outlined" Margin="Margin.Dense" Required="Required"
+                          RequiredError="@L["Validation.Required"]" ReadOnly="ReadOnly" MaxLength="100" />
+        </MudItem>
+        <MudItem xs="8" sm="9">
+            <MudTextField T="string" @bind-Value="Address.City" @bind-Value:after="NotifyAsync" Label="@L["Address.City"]"
+                          Variant="Variant.Outlined" Margin="Margin.Dense" Required="Required"
+                          RequiredError="@L["Validation.Required"]" ReadOnly="ReadOnly" MaxLength="100" />
+        </MudItem>
+        <MudItem xs="4" sm="3">
+            <MudTextField T="string" Value="@Address.State" ValueChanged="OnStateChanged" Label="@L["Address.State"]"
+                          Variant="Variant.Outlined" Margin="Margin.Dense" Required="Required"
+                          RequiredError="@L["Validation.Required"]" ReadOnly="ReadOnly" MaxLength="2" />
+        </MudItem>
+    </MudGrid>
+
+    @if (ShowCoordinates)
+    {
+        <div class="ad-address__geo">
+            @if (Address.HasCoordinates)
+            {
+                <MudIcon Icon="@Icons.Material.Rounded.LocationOn" Color="Color.Success" Size="Size.Small" />
+                <span>@L["Address.OnMap"]</span>
+            }
+            else
+            {
+                <MudIcon Icon="@Icons.Material.Rounded.LocationOff" Color="Color.Warning" Size="Size.Small" />
+                <span>@L["Address.NotOnMap"]</span>
+            }
+
+            @if (!ReadOnly)
+            {
+                <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Rounded.TravelExplore" Disabled="_geocoding" OnClick="GeocodeAsync">
+                    @(_geocoding ? L["Address.Locating"] : L["Address.Locate"])
+                </MudButton>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public AddressDto Address { get; set; } = new();
+
+    /// <summary>Raised after any field changes (the instance itself is edited in place).</summary>
+    [Parameter] public EventCallback<AddressDto> AddressChanged { get; set; }
+
+    [Parameter] public bool Required { get; set; } = true;
+    [Parameter] public bool ReadOnly { get; set; }
+    [Parameter] public bool ShowCoordinates { get; set; } = true;
+
+    private bool _searchingCep;
+    private bool _geocoding;
+
+    private async Task OnZipCodeChanged(string? value)
+    {
+        Address.ZipCode = Fmt.Digits(value);
+        await NotifyAsync();
+
+        if (Address.ZipCode.Length == 8)
+        {
+            await SearchCepAsync();
+        }
+    }
+
+    private Task OnStateChanged(string? value)
+    {
+        Address.State = (value ?? string.Empty).Trim().ToUpperInvariant();
+        return NotifyAsync();
+    }
+
+    private async Task SearchCepAsync()
+    {
+        if (ReadOnly || _searchingCep)
+        {
+            return;
+        }
+
+        _searchingCep = true;
+        try
+        {
+            var result = await Lookup.FindCepAsync(Address.ZipCode);
+            if (result is null)
+            {
+                return;
+            }
+
+            Address.Street = string.IsNullOrWhiteSpace(result.Street) ? Address.Street : result.Street;
+            Address.District = string.IsNullOrWhiteSpace(result.District) ? Address.District : result.District;
+            Address.City = result.City ?? Address.City;
+            Address.State = result.State ?? Address.State;
+
+            // A new CEP means the old pin is probably wrong.
+            Address.Latitude = null;
+            Address.Longitude = null;
+            await NotifyAsync();
+        }
+        finally
+        {
+            _searchingCep = false;
+        }
+    }
+
+    private async Task GeocodeAsync()
+    {
+        _geocoding = true;
+        try
+        {
+            var result = await Lookup.GeocodeAsync(Address);
+            if (result is not null)
+            {
+                Address.Latitude = Math.Round(result.Latitude, 6);
+                Address.Longitude = Math.Round(result.Longitude, 6);
+                await NotifyAsync();
+            }
+        }
+        finally
+        {
+            _geocoding = false;
+        }
+    }
+
+    private Task NotifyAsync() => AddressChanged.InvokeAsync(Address);
+}

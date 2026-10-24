@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Contracts shared by the server and the Blazor client: DTOs, enums and constants.
+    No dependencies on purpose — anything referenced here travels to every layer.
+  -->
+  <PropertyGroup>
+    <RootNamespace>ArtDash.Shared</RootNamespace>
+  </PropertyGroup>
+
+</Project>

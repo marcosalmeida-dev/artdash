@@ -1,0 +1,175 @@
+@page "/checkout"
+@attribute [Authorize(Roles = AppRoles.Customer)]
+@inject CartService Cart
+@inject StoreState Store
+@inject MeApi Me
+@inject UiActions Ui
+@inject NavigationManager Navigation
+
+<div class="ad-page ad-page--narrow">
+    <PageHeader Title="@L["Checkout.Title"]" Icon="@Icons.Material.Rounded.ShoppingCartCheckout" BackHref="/carrinho" />
+
+    @if (_profile is null)
+    {
+        <LoadingScreen />
+    }
+    else
+    {
+        <div class="ad-split">
+            <div class="ad-stack">
+                <section class="ad-card">
+                    <h2 class="ad-card__title"><MudIcon Icon="@Icons.Material.Rounded.LocationOn" Size="Size.Small" /> @L["Checkout.DeliveryAddress"]</h2>
+                    <AddressEditor Address="_request.DeliveryAddress" />
+                </section>
+
+                <section class="ad-card">
+                    <h2 class="ad-card__title"><MudIcon Icon="@Icons.Material.Rounded.Payments" Size="Size.Small" /> @L["Checkout.Payment"]</h2>
+
+                    @if (!Timings.Any())
+                    {
+                        <MudAlert Severity="Severity.Warning" Dense="true">@L["Checkout.NoPaymentOptions"]</MudAlert>
+                    }
+
+                    <div class="ad-options">
+                        @foreach (var timing in Timings)
+                        {
+                            <button type="button" class="ad-option @(_request.PaymentTiming == timing ? "is-selected" : null)"
+                                    @onclick="@(() => SelectTiming(timing))">
+                                <span class="ad-option__icon"><MudIcon Icon="@StatusStyles.Icon(timing)" /></span>
+                                <span class="ad-option__text">
+                                    <span class="ad-option__title">@L[$"Checkout.Timing.{timing}"]</span>
+                                    <span class="ad-option__hint">@TimingHint(timing)</span>
+                                </span>
+                                <MudIcon Icon="@(_request.PaymentTiming == timing ? Icons.Material.Rounded.RadioButtonChecked : Icons.Material.Rounded.RadioButtonUnchecked)"
+                                         Class="ad-option__check" Size="Size.Small" />
+                            </button>
+                        }
+                    </div>
+
+                    @if (_request.PaymentTiming == PaymentTiming.OnDelivery)
+                    {
+                        <MudSelect T="PaymentMethod?" @bind-Value="_request.PaymentMethod" Label="@L["Checkout.OnDeliveryMethod"]"
+                                   Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" ToStringFunc="@(m => L.Enum(m))">
+                            @foreach (var method in OnDeliveryMethods)
+                            {
+                                <MudSelectItem T="PaymentMethod?" Value="@method">@L.Enum(method)</MudSelectItem>
+                            }
+                        </MudSelect>
+                    }
+                </section>
+
+                <section class="ad-card">
+                    <h2 class="ad-card__title"><MudIcon Icon="@Icons.Material.Rounded.EditNote" Size="Size.Small" /> @L["Checkout.Notes"]</h2>
+                    <MudTextField T="string" @bind-Value="_request.Notes" Placeholder="@L["Checkout.NotesPlaceholder"]"
+                                  Variant="Variant.Outlined" Lines="3" MaxLength="1000" />
+                </section>
+            </div>
+
+            <aside class="ad-card ad-summary">
+                <h2 class="ad-card__title">@L["Cart.Summary"]</h2>
+                <ul class="ad-summary__lines">
+                    @foreach (var line in Cart.Lines)
+                    {
+                        <li><span>@Fmt.Quantity(line.Quantity)× @line.Name</span><span>@Fmt.Money(line.Total)</span></li>
+                    }
+                </ul>
+                <dl class="ad-totals">
+                    <div><dt>@L["Orders.Subtotal"]</dt><dd>@Fmt.Money(Cart.Subtotal)</dd></div>
+                    <div><dt>@L["Orders.DeliveryFee"]</dt><dd>@(Fee == 0 ? L["Orders.FreeDelivery"] : Fmt.Money(Fee))</dd></div>
+                    <div class="ad-totals__grand"><dt>@L["Orders.Total"]</dt><dd>@Fmt.Money(Cart.Subtotal + Fee)</dd></div>
+                </dl>
+                <p class="ad-muted ad-small mt-2">@L["Checkout.PricesConfirmed"]</p>
+
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" DropShadow="false" FullWidth="true" Size="Size.Large"
+                           Class="mt-3" Disabled="@(!CanPlace)" OnClick="PlaceAsync"
+                           StartIcon="@(_placing ? null : Icons.Material.Rounded.CheckCircle)">
+                    @if (_placing)
+                    {
+                        <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
+                    }
+                    @(_request.PaymentTiming == PaymentTiming.Prepaid ? L["Checkout.PlaceAndPay"] : L["Checkout.Place"])
+                </MudButton>
+            </aside>
+        </div>
+    }
+</div>
+
+@code {
+    private static readonly PaymentMethod[] OnDeliveryMethods =
+        [PaymentMethod.Pix, PaymentMethod.CreditCard, PaymentMethod.DebitCard, PaymentMethod.Cash];
+
+    private readonly PlaceOrderRequest _request = new();
+    private MyProfileDto? _profile;
+    private bool _placing;
+
+    private decimal Fee => Store.DeliveryFeeFor(Cart.Subtotal);
+
+    private PaymentOptionsDto Payments => Store.Info.Payments;
+
+    private IEnumerable<PaymentTiming> Timings
+    {
+        get
+        {
+            if (Payments.OnlinePaymentAvailable) yield return PaymentTiming.Prepaid;
+            if (Payments.PayOnDeliveryEnabled) yield return PaymentTiming.OnDelivery;
+            if (Payments.InvoicingEnabled && _profile?.AllowInvoicing == true) yield return PaymentTiming.Invoiced;
+        }
+    }
+
+    private bool CanPlace =>
+        !_placing && !Cart.IsEmpty && Timings.Contains(_request.PaymentTiming) &&
+        (_request.PaymentTiming != PaymentTiming.OnDelivery || _request.PaymentMethod is not null);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Cart.LoadAsync();
+        if (Cart.IsEmpty)
+        {
+            Navigation.NavigateTo("/carrinho", replace: true);
+            return;
+        }
+
+        _profile = await Ui.LoadAsync(() => Me.GetProfileAsync());
+        if (_profile is null)
+        {
+            return;
+        }
+
+        _request.DeliveryAddress = _profile.Address.Clone();
+        _request.PaymentTiming = Timings.FirstOrDefault(PaymentTiming.Prepaid);
+    }
+
+    private void SelectTiming(PaymentTiming timing)
+    {
+        _request.PaymentTiming = timing;
+        _request.PaymentMethod = timing == PaymentTiming.OnDelivery ? _request.PaymentMethod ?? PaymentMethod.Pix : null;
+    }
+
+    private string TimingHint(PaymentTiming timing) => timing switch
+    {
+        PaymentTiming.Prepaid => L["Checkout.Timing.PrepaidHint"],
+        PaymentTiming.OnDelivery => L["Checkout.Timing.OnDeliveryHint"],
+        _ => _profile is { PaymentTermDays: > 0 } profile
+            ? L["Checkout.Timing.InvoicedHint", profile.PaymentTermDays]
+            : L["Checkout.Timing.InvoicedHintDefault"]
+    };
+
+    private async Task PlaceAsync()
+    {
+        _placing = true;
+
+        _request.Items = Cart.Lines.Select(l => new OrderItemRequest { ProductId = l.ProductId, Quantity = l.Quantity }).ToList();
+
+        PlaceOrderResultDto? result = null;
+        if (await Ui.RunAsync(async () => result = await Me.PlaceOrderAsync(_request)) && result is not null)
+        {
+            await Cart.ClearAsync();
+            Navigation.NavigateTo(result.RequiresOnlinePayment
+                ? $"/pedidos/{result.OrderId}/pagamento"
+                : $"/meus-pedidos/{result.OrderId}?novo=1");
+            return;
+        }
+
+        _placing = false;
+    }
+}

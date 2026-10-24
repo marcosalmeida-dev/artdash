@@ -1,0 +1,244 @@
+﻿@page "/admin/pedidos/{Id:guid}"
+@attribute [Authorize(Roles = AppRoles.Staff)]
+@implements IAsyncDisposable
+@inject OrdersApi Orders
+@inject StoreState Store
+@inject RealtimeClient Realtime
+@inject IDialogService Dialogs
+@inject UiActions Ui
+
+<div class="ad-page">
+    @if (_order is null)
+    {
+        <PageHeader Title="@L["Orders.Title"]" BackHref="/admin/pedidos" />
+        <LoadingScreen />
+    }
+    else
+    {
+        <PageHeader Title="@L["Orders.OrderNumber", _order.Number]" BackHref="/admin/pedidos"
+                    Subtitle="@L["Orders.PlacedOn", Fmt.DateAndTime(Store.ToLocal(_order.PlacedAt)), L.Enum(_order.Channel)]">
+            <Metadata>
+                <div class="ad-chips">
+                    <StatusChip Text="@L.Enum(_order.Status)" Color="@StatusStyles.For(_order.Status)" Icon="@StatusStyles.Icon(_order.Status)" Variant="Variant.Filled" />
+                    <StatusChip Text="@L.Enum(_order.PaymentStatus)" Color="@StatusStyles.For(_order.PaymentStatus)" Variant="Variant.Outlined" />
+                    <StatusChip Text="@L.Enum(_order.PaymentTiming)" Icon="@StatusStyles.Icon(_order.PaymentTiming)" />
+                    @if (_order.IsOverdue)
+                    {
+                        <StatusChip Text="@L["Receivables.Overdue"]" Color="Color.Error" Icon="@Icons.Material.Rounded.Warning" />
+                    }
+                </div>
+            </Metadata>
+            <ChildContent>
+                @foreach (var target in Targets)
+                {
+                    <MudButton Variant="Variant.Filled" Color="@StatusStyles.For(target)" DropShadow="false" Disabled="_busy"
+                               StartIcon="@StatusStyles.Icon(target)" OnClick="@(() => MoveAsync(target))">
+                        @L[$"Orders.MoveTo.{target}"]
+                    </MudButton>
+                }
+                @if (CanRegisterPayment)
+                {
+                    <MudButton Variant="Variant.Outlined" Color="Color.Success" StartIcon="@Icons.Material.Rounded.Payments"
+                               Disabled="_busy" OnClick="RegisterPaymentAsync">@L["Payments.Register"]</MudButton>
+                }
+                <MudMenu Icon="@Icons.Material.Rounded.MoreVert" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight"
+                         PopoverClass="ad-menu-popover">
+                    <MudMenuItem Href="@($"/rastreio/{_order.TrackingCode}")" Target="_blank" Icon="@Icons.Material.Rounded.Route">@L["Orders.OpenTracking"]</MudMenuItem>
+                    @if (_order.DeliveryId is { } deliveryId)
+                    {
+                        <MudMenuItem Href="@($"/admin/entregas/{deliveryId}")" Icon="@Icons.Material.Rounded.LocalShipping">@L["Orders.OpenDelivery", _order.DeliveryNumber ?? ""]</MudMenuItem>
+                    }
+                    @if (StatusStyles.CanCancel(_order.Status, _order.DeliveryId is not null))
+                    {
+                        <MudMenuItem Icon="@Icons.Material.Rounded.Cancel" IconColor="Color.Error" OnClick="CancelAsync">@L["Orders.Cancel"]</MudMenuItem>
+                    }
+                </MudMenu>
+            </ChildContent>
+        </PageHeader>
+
+        <div class="ad-split ad-split--wide">
+            <div class="ad-stack">
+                <section class="ad-card">
+                    <h2 class="ad-card__title">@L["Orders.Items"]</h2>
+                    <OrderItemsSummary Order="_order" />
+                    @if (!string.IsNullOrWhiteSpace(_order.Notes))
+                    {
+                        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3" Icon="@Icons.Material.Rounded.EditNote">@_order.Notes</MudAlert>
+                    }
+                </section>
+
+                <section class="ad-card">
+                    <h2 class="ad-card__title">@L["Orders.Payments"]</h2>
+                    @if (_order.Payments.Count == 0 && _order.Transactions.Count == 0)
+                    {
+                        <p class="ad-muted">@L["Orders.NoPayments"]</p>
+                    }
+                    @foreach (var payment in _order.Payments)
+                    {
+                        <div class="ad-row ad-row--static">
+                            <span class="ad-row__main">
+                                <strong><MudIcon Icon="@StatusStyles.Icon(payment.Method)" Size="Size.Small" /> @L.Enum(payment.Method)</strong>
+                                <span class="ad-muted ad-small">@Fmt.DateAndTime(Store.ToLocal(payment.PaidAt)) · @payment.RegisteredBy @(payment.Reference is null ? "" : $"· {payment.Reference}")</span>
+                            </span>
+                            <strong class="ad-text-success">@Fmt.Money(payment.Amount)</strong>
+                        </div>
+                    }
+                    @if (_order.Transactions.Count > 0)
+                    {
+                        <h3 class="ad-section-title mt-4">@L["Orders.GatewayAttempts"]</h3>
+                        @foreach (var transaction in _order.Transactions)
+                        {
+                            <div class="ad-row ad-row--static">
+                                <span class="ad-row__main">
+                                    <span>@L.Enum(transaction.Method) · @transaction.Provider @transaction.ProviderPaymentId</span>
+                                    <span class="ad-muted ad-small">@Fmt.DateAndTime(Store.ToLocal(transaction.CreatedAt)) @transaction.StatusDetail</span>
+                                </span>
+                                <StatusChip Text="@L.Enum(transaction.Status)" Color="@StatusStyles.For(transaction.Status)" />
+                                <span>@Fmt.Money(transaction.Amount)</span>
+                            </div>
+                        }
+                    }
+                </section>
+
+                <section class="ad-card">
+                    <h2 class="ad-card__title">@L["Tracking.History"]</h2>
+                    <OrderTimeline History="_order.History" ShowAuthor="true" />
+                </section>
+            </div>
+
+            <aside class="ad-stack">
+                <section class="ad-card">
+                    <h2 class="ad-card__title">@L["Orders.Customer"]</h2>
+                    <dl class="ad-kv">
+                        <div><dt>@L["Profile.Name"]</dt><dd>@_order.CustomerName</dd></div>
+                        @if (!string.IsNullOrWhiteSpace(_order.CustomerPhone))
+                        {
+                            <div><dt>@L["Profile.Phone"]</dt><dd><a class="ad-link" href="@Fmt.TelLink(_order.CustomerPhone)">@Fmt.Phone(_order.CustomerPhone)</a></dd></div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(_order.CustomerDocument))
+                        {
+                            <div><dt>@L["Profile.Document"]</dt><dd>@Fmt.Document(_order.CustomerDocument)</dd></div>
+                        }
+                        @if (_order.DueDate is { } due)
+                        {
+                            <div><dt>@L["Orders.DueDate"]</dt><dd>@Fmt.Date(due)</dd></div>
+                        }
+                    </dl>
+                </section>
+
+                <section class="ad-card ad-card--flush">
+                    <h2 class="ad-card__title ad-card__title--pad">@L["Checkout.DeliveryAddress"]</h2>
+                    <p class="ad-address-line ad-pad-x">@_order.DeliveryAddress.ToSingleLine()</p>
+                    @if (_order.DeliveryAddress.HasCoordinates)
+                    {
+                        <LeafletMap Markers="_markers" Height="220px" Zoom="15" />
+                    }
+                    <div class="ad-pad">
+                        <MudButton Href="@Fmt.DirectionsLink(_order.DeliveryAddress)" Target="_blank" Size="Size.Small" Variant="Variant.Text"
+                                   StartIcon="@Icons.Material.Rounded.Directions">@L["Orders.Directions"]</MudButton>
+                    </div>
+                </section>
+            </aside>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private OrderDto? _order;
+    private IReadOnlyList<MapMarker> _markers = [];
+    private bool _busy;
+
+    private IReadOnlyList<OrderStatus> Targets => _order is null
+        ? []
+        : StatusStyles.ManualTargets(_order.Status, _order.PaymentTiming, _order.PaymentStatus, _order.DeliveryId is not null);
+
+    private bool CanRegisterPayment => _order is { Status: not OrderStatus.Cancelled } && _order.Outstanding > 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+        Realtime.OrderChanged += OnOrderChangedAsync;
+        await Realtime.EnsureStartedAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _order = await Ui.LoadAsync(() => Orders.GetAsync(Id)) ?? _order;
+        if (_order?.DeliveryAddress is { HasCoordinates: true } address)
+        {
+            var markers = new List<MapMarker>
+            {
+                new("destination", address.Latitude!.Value, address.Longitude!.Value, MapMarkerKinds.Destination, "★", _order.CustomerName)
+            };
+
+            if (Store.Info.Address is { HasCoordinates: true } store)
+            {
+                markers.Add(new MapMarker("store", store.Latitude!.Value, store.Longitude!.Value, MapMarkerKinds.Store, null, Store.Info.Name));
+            }
+
+            _markers = markers;
+        }
+    }
+
+    private async Task MoveAsync(OrderStatus target)
+    {
+        _busy = true;
+        if (await Ui.RunAsync(() => Orders.ChangeStatusAsync(Id, target), L["Orders.Moved", L.Enum(target)]))
+        {
+            await LoadAsync();
+        }
+
+        _busy = false;
+    }
+
+    private async Task CancelAsync()
+    {
+        var reason = await Dialogs.PromptAsync(L["Orders.Cancel"], L["Orders.CancelReason"], L["Orders.CancelYes"], L["Common.Back"], color: Color.Error);
+        if (reason is null)
+        {
+            return;
+        }
+
+        if (await Ui.RunAsync(() => Orders.CancelAsync(Id, reason), L["Orders.Cancelled"]))
+        {
+            await LoadAsync();
+        }
+    }
+
+    private async Task RegisterPaymentAsync()
+    {
+        if (_order is null)
+        {
+            return;
+        }
+
+        var parameters = new DialogParameters<RegisterPaymentDialog>
+        {
+            { x => x.OrderId, _order.Id },
+            { x => x.OrderNumber, _order.Number },
+            { x => x.Outstanding, _order.Outstanding },
+            { x => x.SuggestedMethod, _order.PaymentMethod }
+        };
+
+        var dialog = await Dialogs.ShowAsync<RegisterPaymentDialog>(L["Payments.Register"], parameters, DialogServiceExtensions.Form(MaxWidth.Small));
+        if (await dialog.Result is { Canceled: false })
+        {
+            await LoadAsync();
+        }
+    }
+
+    private Task OnOrderChangedAsync(OrderChangedMessage message) =>
+        message.OrderId != Id ? Task.CompletedTask : InvokeAsync(async () =>
+        {
+            await LoadAsync();
+            StateHasChanged();
+        });
+
+    public ValueTask DisposeAsync()
+    {
+        Realtime.OrderChanged -= OnOrderChangedAsync;
+        return ValueTask.CompletedTask;
+    }
+}

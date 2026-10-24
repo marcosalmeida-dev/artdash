@@ -1,0 +1,269 @@
+@inherits LayoutComponentBase
+@implements IAsyncDisposable
+@inject AuthSession Session
+@inject BrandingState Brand
+@inject ThemePreference ThemePref
+@inject StoreState Store
+@inject CartService Cart
+@inject BrowserUtil Browser
+@inject NavigationManager Navigation
+
+@* ObserveSystemDarkModeChange stays off: IsDarkMode follows ThemePreference, which itself follows the
+   OS while the visitor has not chosen (artstore-fs pattern — see OnAfterRenderAsync). *@
+<MudThemeProvider @ref="_themeProvider" Theme="@Brand.Theme" IsDarkMode="@IsDark" ObserveSystemDarkModeChange="false" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+<BrandStyle />
+
+<MudLayout Class="@($"ad-shell ad-shell--{_shell.ToString().ToLowerInvariant()}")">
+    @if (!_ready)
+    {
+        @* Neutral frame while the session is restored, rather than guessing a shell and flashing it. *@
+        <MudAppBar Fixed="true" Elevation="0" Class="ad-bar ad-bar--store" ToolBarClass="ad-toolbar">
+            <BrandMark Variant="store" />
+        </MudAppBar>
+    }
+    else if (_shell == AppShell.Console)
+    {
+        @* ------------------------------ Back-office console ------------------------------ *@
+        <MudAppBar Fixed="true" Elevation="0" Class="ad-bar ad-bar--console" ToolBarClass="ad-toolbar">
+            <MudTooltip Text="@L["Nav.Menu"]" Placement="Placement.Bottom">
+                <MudIconButton Icon="@Icons.Material.Rounded.Menu" Class="ad-icon-btn" aria-label="@L["Nav.Menu"]"
+                               OnClick="@(() => _drawerOpen = !_drawerOpen)" />
+            </MudTooltip>
+            <BrandMark Variant="console" Href="@LandingRoutes.Admin" />
+            <span class="ad-role">@L.Role(_user.MainRole())</span>
+            <MudSpacer />
+            <MudTooltip Text="@L["Nav.ViewStore"]" Placement="Placement.Bottom">
+                <MudIconButton Icon="@Icons.Material.Rounded.Storefront" Class="ad-icon-btn" Href="/?preview=1"
+                               aria-label="@L["Nav.ViewStore"]" />
+            </MudTooltip>
+            <ThemeToggle />
+            <div class="ad-divider-v"></div>
+            <AccountMenu User="_user" OnSignOut="SignOutAsync" />
+        </MudAppBar>
+
+        <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="0" Class="ad-drawer">
+            <NavMenu User="_user" />
+        </MudDrawer>
+    }
+    else if (_shell == AppShell.Driver)
+    {
+        @* ---------------------------------- Driver app ---------------------------------- *@
+        <MudAppBar Fixed="true" Elevation="0" Class="ad-bar ad-bar--console ad-bar--driver" ToolBarClass="ad-toolbar">
+            <BrandMark Variant="console" Href="@LandingRoutes.Driver" />
+            <span class="ad-role">@L["Role.Driver"]</span>
+            <MudSpacer />
+            <ThemeToggle />
+            <div class="ad-divider-v"></div>
+            <AccountMenu User="_user" OnSignOut="SignOutAsync" />
+        </MudAppBar>
+    }
+    else
+    {
+        @* ---------------------------------- Storefront ---------------------------------- *@
+        <MudAppBar Fixed="true" Elevation="0" Class="ad-bar ad-bar--store" ToolBarClass="ad-toolbar">
+            <BrandMark Variant="store" Href="/" ShowTagline="true" />
+            <MudSpacer />
+
+            <nav class="ad-nav" aria-label="@L["Nav.Main"]">
+                <a href="/" class="ad-nav__link @ActiveClass("", exact: true)">
+                    <MudIcon Icon="@Icons.Material.Rounded.Storefront" Size="Size.Small" />
+                    <span class="ad-nav__label">@L["Nav.Store"]</span>
+                </a>
+                @if (_user.IsCustomer())
+                {
+                    <a href="/meus-pedidos" class="ad-nav__link @ActiveClass("meus-pedidos")">
+                        <MudIcon Icon="@Icons.Material.Rounded.ShoppingBag" Size="Size.Small" />
+                        <span class="ad-nav__label">@L["Nav.MyOrders"]</span>
+                    </a>
+                }
+            </nav>
+
+            <MudButton Href="/carrinho" Class="ad-cta" DropShadow="false" StartIcon="@Icons.Material.Rounded.ShoppingCart">
+                <span class="ad-cta__label">@L["Nav.Cart"]</span>
+                @if (!Cart.IsEmpty)
+                {
+                    <span class="ad-cta__badge">@Fmt.Quantity(Cart.ItemCount)</span>
+                }
+            </MudButton>
+
+            @if (_user.IsSignedIn())
+            {
+                <AccountMenu User="_user" OnSignOut="SignOutAsync" />
+            }
+            else
+            {
+                <MudButton Href="@LandingRoutes.LoginFor(CurrentPath)" Class="ad-signin" DropShadow="false"
+                           StartIcon="@Icons.Material.Rounded.PersonOutline">
+                    <span class="ad-signin__label">@L["Nav.SignIn"]</span>
+                </MudButton>
+            }
+
+            <ThemeToggle />
+        </MudAppBar>
+    }
+
+    <MudMainContent Class="@MainClass">
+        @if (_ready)
+        {
+            @Body
+        }
+        else
+        {
+            <LoadingScreen />
+        }
+    </MudMainContent>
+
+    @if (_ready)
+    {
+        <MobileBottomNav Shell="_shell" User="_user" CartCount="Cart.ItemCount"
+                         OnMenu="@(() => _mobileMenuOpen = true)" OnSignOut="SignOutAsync" />
+    }
+
+    @if (_ready && _shell == AppShell.Console)
+    {
+        @* Below the tablet breakpoint the console drawer is hidden; the bottom bar's "Menu" opens this one. *@
+        <MudDrawer @bind-Open="_mobileMenuOpen" Variant="DrawerVariant.Temporary" Anchor="Anchor.Start"
+                   Elevation="2" Class="ad-mobile-drawer">
+            <div class="ad-mobile-drawer__head">
+                <BrandMark Variant="store" />
+                <span class="ad-role ad-role--soft">@L.Role(_user.MainRole())</span>
+            </div>
+            <NavMenu User="_user" />
+        </MudDrawer>
+    }
+</MudLayout>
+
+<div id="blazor-error-ui" data-nosnippet>
+    @L["Errors.Unhandled"]
+    <a href="." class="reload">@L["Errors.Reload"]</a>
+    <span class="dismiss">🗙</span>
+</div>
+
+@code {
+    private static readonly string[] FullBleedRoutes = ["", "rastreio"];
+
+    private MudThemeProvider? _themeProvider;
+    private ClaimsPrincipal _user = new(new ClaimsIdentity());
+    private AppShell _shell = AppShell.Store;
+    private bool _ready;
+    private bool _drawerOpen = true;
+    private bool _mobileMenuOpen;
+    private string? _appliedThemeColor;
+
+    private bool IsDark => ThemePref.IsDark(Brand.Current.AllowDarkMode);
+
+    private string CurrentPath => "/" + Navigation.ToBaseRelativePath(Navigation.Uri);
+
+    protected override async Task OnInitializedAsync()
+    {
+        Navigation.LocationChanged += OnLocationChanged;
+        Session.UserChanged += OnUserChanged;
+        Brand.Changed += OnStateChanged;
+        ThemePref.Changed += OnStateChanged;
+        Cart.Changed += OnStateChanged;
+
+        await Task.WhenAll(
+            Session.EnsureRestoredAsync(),
+            Brand.EnsureLoadedAsync(),
+            Store.EnsureLoadedAsync(),
+            ThemePref.InitializeAsync(),
+            Cart.LoadAsync());
+
+        ApplyUser();
+        Session.StartKeepAlive();
+        _ready = true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && _themeProvider is not null)
+        {
+            try
+            {
+                ThemePref.SetSystemPreference(await _themeProvider.GetSystemDarkModeAsync());
+                await _themeProvider.WatchSystemDarkModeAsync(isDark =>
+                {
+                    ThemePref.SetSystemPreference(isDark);
+                    return Task.CompletedTask;
+                });
+            }
+            catch (JSException)
+            {
+                // No matchMedia: light stands in for the system value.
+            }
+        }
+
+        if (!_ready)
+        {
+            return;
+        }
+
+        // Android tints the status bar with theme-color: follow the shell being drawn.
+        var color = _shell == AppShell.Store
+            ? (IsDark ? "#121417" : "#FFFFFF")
+            : ColorMath.Normalize(Brand.Current.ConsoleColor, BrandingDefaults.ConsoleColor);
+
+        if (_appliedThemeColor != color)
+        {
+            _appliedThemeColor = color;
+            await Browser.SetThemeColorAsync(color);
+        }
+    }
+
+    private void ApplyUser()
+    {
+        _user = Session.Principal;
+        _shell = _user.IsStaff() ? AppShell.Console : _user.IsDriver() ? AppShell.Driver : AppShell.Store;
+    }
+
+    private string MainClass
+    {
+        get
+        {
+            var path = Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0].Trim('/');
+            var firstSegment = path.Split('/')[0];
+            var bleed = _shell == AppShell.Store && Array.Exists(FullBleedRoutes, r => string.Equals(r, path.Length == 0 ? "" : firstSegment, StringComparison.OrdinalIgnoreCase));
+            return bleed ? "ad-main ad-main--bleed" : $"ad-main ad-main--{_shell.ToString().ToLowerInvariant()}";
+        }
+    }
+
+    private string? ActiveClass(string path, bool exact = false)
+    {
+        var current = Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0].Trim('/');
+        var active = exact ? current.Length == 0 || current == path : current.StartsWith(path, StringComparison.OrdinalIgnoreCase);
+        return active ? "is-active" : null;
+    }
+
+    private async Task SignOutAsync()
+    {
+        await Session.LogoutAsync();
+        Navigation.NavigateTo("/", replace: true);
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        _mobileMenuOpen = false;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void OnUserChanged() => _ = InvokeAsync(() =>
+    {
+        ApplyUser();
+        StateHasChanged();
+    });
+
+    private void OnStateChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public ValueTask DisposeAsync()
+    {
+        Navigation.LocationChanged -= OnLocationChanged;
+        Session.UserChanged -= OnUserChanged;
+        Brand.Changed -= OnStateChanged;
+        ThemePref.Changed -= OnStateChanged;
+        Cart.Changed -= OnStateChanged;
+        return ValueTask.CompletedTask;
+    }
+}

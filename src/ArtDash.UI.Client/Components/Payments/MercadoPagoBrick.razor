@@ -1,0 +1,288 @@
+@using System.Text.Json
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject PaymentsApi Payments
+@inject UiActions Ui
+@inject BrowserUtil Browser
+@inject ThemePreference ThemePref
+@inject BrandingState Brand
+
+@*
+    Mercado Pago Checkout Transparente — Payment Brick (credit, debit, PIX), ported from artstore-fs.
+    Cards are tokenized in the browser; only the token reaches the API. A PIX payment shows its QR code
+    here and is polled until it settles (the webhook settles it too; whichever comes first wins).
+*@
+<div class="ad-brick-host">
+    @if (!string.IsNullOrEmpty(_error))
+    {
+        <MudAlert Severity="Severity.Error" Dense="true" Class="mb-3">@_error</MudAlert>
+    }
+
+    @if (_pix is not null)
+    {
+        <div class="ad-pix">
+            <span class="ad-pix__title">@L["Payment.PixScan"]</span>
+            <span class="ad-pix__text">@L["Payment.PixInstructions"]</span>
+
+            @if (!string.IsNullOrEmpty(_pix.PixQrCodeBase64))
+            {
+                <img class="ad-pix__qr" src="data:image/png;base64,@_pix.PixQrCodeBase64" alt="@L["Payment.PixQrAlt"]" />
+            }
+
+            @if (!string.IsNullOrEmpty(_pix.PixQrCode))
+            {
+                <MudTextField T="string" Value="@_pix.PixQrCode" ReadOnly="true" Variant="Variant.Outlined" Margin="Margin.Dense"
+                              Label="@L["Payment.PixCopyPaste"]" Adornment="Adornment.End"
+                              AdornmentIcon="@Icons.Material.Rounded.ContentCopy" OnAdornmentClick="CopyPixAsync" Class="ad-pix__code" />
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" DropShadow="false" FullWidth="true"
+                           StartIcon="@Icons.Material.Rounded.ContentCopy" OnClick="CopyPixAsync">@L["Payment.PixCopy"]</MudButton>
+            }
+
+            <div class="ad-pix__waiting">
+                <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+                <span>@L["Payment.PixWaiting"]</span>
+            </div>
+            @if (_pix.ExpiresAt is { } expires)
+            {
+                <span class="ad-pix__expires">@L["Payment.PixExpires", Fmt.Time(Store.ToLocal(expires))]</span>
+            }
+        </div>
+    }
+
+    <div id="@_containerId" class="ad-brick-container" style="@(_pix is null ? null : "display:none")"></div>
+
+    @if (_loading && _pix is null)
+    {
+        <LoadingScreen Inline="true" Text="@L["Payment.Loading"]" />
+    }
+</div>
+
+@code {
+    private const string ModulePath = "./_content/ArtDash.UI.Client/js/mpCheckout.js";
+    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(5);
+
+    [Inject] private StoreState Store { get; set; } = default!;
+
+    [Parameter, EditorRequired] public Guid OrderId { get; set; }
+    [Parameter, EditorRequired] public decimal Amount { get; set; }
+    [Parameter, EditorRequired] public PaymentOptionsDto Options { get; set; } = new();
+    [Parameter] public string? PayerEmail { get; set; }
+
+    /// <summary>Every new state of the payment (approved, rejected, PIX waiting, PIX paid).</summary>
+    [Parameter] public EventCallback<OnlinePaymentResultDto> OnResult { get; set; }
+
+    private readonly string _containerId = $"mp-brick-{Guid.NewGuid():N}";
+    private readonly CancellationTokenSource _polling = new();
+    private IJSObjectReference? _module;
+    private DotNetObjectReference<MercadoPagoBrick>? _reference;
+    private bool _loading = true;
+    private string? _error;
+    private OnlinePaymentResultDto? _pix;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        try
+        {
+            _reference = DotNetObjectReference.Create(this);
+            _module = await JS.InvokeAsync<IJSObjectReference>("import", ModulePath);
+            await _module.InvokeAsync<bool>("initPaymentBrick", _containerId, new
+            {
+                amount = Amount,
+                publicKey = Options.MercadoPagoPublicKey,
+                payerEmail = PayerEmail,
+                credit = Options.CreditCardEnabled,
+                debit = Options.DebitCardEnabled,
+                pix = Options.PixEnabled,
+                maxInstallments = Options.MaxInstallments,
+                pixHint = L["Payment.PixHint"].Value,
+                locale = "pt-BR",
+                dark = ThemePref.IsDark(Brand.Current.AllowDarkMode)
+            }, _reference);
+        }
+        catch (JSException)
+        {
+            _error = L["Payment.InitFailed"];
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    [JSInvokable]
+    public void OnBrickReady()
+    {
+        _loading = false;
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public void OnBrickError(string errorJson)
+    {
+        // Field-level errors are shown by the Brick itself; only a failed start needs our message.
+        if (_loading)
+        {
+            _error = L["Payment.InitFailed"];
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>The Brick's onSubmit: creates the payment and answers "approved" | "pending" | "rejected" | "error".</summary>
+    [JSInvokable]
+    public async Task<string> OnBrickSubmit(string payloadJson)
+    {
+        _error = null;
+        var request = ParseFormData(payloadJson);
+
+        OnlinePaymentResultDto? result = null;
+        if (!await Ui.RunAsync(async () => result = await Payments.CreateAsync(request)) || result is null)
+        {
+            _error = L["Payment.Rejected"];
+            StateHasChanged();
+            return "error";
+        }
+
+        await OnResult.InvokeAsync(result);
+
+        switch (result.Status)
+        {
+            case TransactionStatus.Approved:
+                return "approved";
+
+            case TransactionStatus.Pending or TransactionStatus.InProcess when result.IsPix:
+                _pix = result;
+                StateHasChanged();
+                _ = PollAsync(result.TransactionId);
+                return "pending";
+
+            case TransactionStatus.Pending or TransactionStatus.InProcess:
+                _ = PollAsync(result.TransactionId);
+                return "pending";
+
+            default:
+                _error = L["Payment.Rejected"];
+                StateHasChanged();
+                return "rejected";
+        }
+    }
+
+    /// <summary>Re-reads a pending payment until it settles (or the page goes away).</summary>
+    private async Task PollAsync(Guid transactionId)
+    {
+        using var timer = new PeriodicTimer(PollInterval);
+        try
+        {
+            while (await timer.WaitForNextTickAsync(_polling.Token))
+            {
+                OnlinePaymentResultDto? result;
+                try
+                {
+                    result = await Payments.SyncAsync(transactionId);
+                }
+                catch (ApiException)
+                {
+                    continue;
+                }
+
+                if (result.Status is TransactionStatus.Pending or TransactionStatus.InProcess)
+                {
+                    continue;
+                }
+
+                await InvokeAsync(async () =>
+                {
+                    if (result.Status != TransactionStatus.Approved)
+                    {
+                        _pix = null;
+                        _error = result.Status == TransactionStatus.Expired ? L["Payment.PixExpired"] : L["Payment.Rejected"];
+                    }
+
+                    await OnResult.InvokeAsync(result);
+                    StateHasChanged();
+                });
+                return;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private async Task CopyPixAsync()
+    {
+        if (!string.IsNullOrEmpty(_pix?.PixQrCode) && await Browser.CopyAsync(_pix.PixQrCode))
+        {
+            Ui.Success(L["Payment.PixCopied"]);
+        }
+    }
+
+    private CreateOnlinePaymentRequest ParseFormData(string payloadJson)
+    {
+        using var document = JsonDocument.Parse(payloadJson);
+        var root = document.RootElement;
+        var form = root.TryGetProperty("formData", out var f) ? f : root;
+        var payer = form.TryGetProperty("payer", out var p) && p.ValueKind == JsonValueKind.Object ? p : default;
+        var identification = payer.ValueKind == JsonValueKind.Object && payer.TryGetProperty("identification", out var i) ? i : default;
+
+        int? installments = null;
+        if (form.TryGetProperty("installments", out var inst))
+        {
+            if (inst.ValueKind == JsonValueKind.Number && inst.TryGetInt32(out var n)) installments = n;
+            else if (inst.ValueKind == JsonValueKind.String && int.TryParse(inst.GetString(), out var s)) installments = s;
+        }
+
+        return new CreateOnlinePaymentRequest
+        {
+            OrderId = OrderId,
+            Token = Str(form, "token"),
+            PaymentMethodId = Str(form, "payment_method_id") ?? string.Empty,
+            PaymentTypeId = Str(form, "payment_type_id") ?? Str(root, "selectedPaymentMethod"),
+            IssuerId = Str(form, "issuer_id"),
+            Installments = installments,
+            PayerEmail = Str(payer, "email") ?? PayerEmail,
+            PayerFirstName = Str(payer, "first_name"),
+            PayerLastName = Str(payer, "last_name"),
+            IdentificationType = Str(identification, "type"),
+            IdentificationNumber = Str(identification, "number")
+        };
+
+        static string? Str(JsonElement element, string name)
+        {
+            if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(name, out var value))
+            {
+                return null;
+            }
+
+            return value.ValueKind switch
+            {
+                JsonValueKind.String => value.GetString(),
+                JsonValueKind.Null or JsonValueKind.Undefined => null,
+                _ => value.ToString()
+            };
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await _polling.CancelAsync();
+        _polling.Dispose();
+
+        try
+        {
+            if (_module is not null)
+            {
+                await _module.InvokeVoidAsync("destroy", _containerId);
+                await _module.DisposeAsync();
+            }
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or JSException)
+        {
+        }
+
+        _reference?.Dispose();
+    }
+}

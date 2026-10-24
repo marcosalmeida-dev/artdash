@@ -1,0 +1,12 @@
+﻿<Project>
+  <!--
+    Diagnósticos do compilador (erros e avisos, inclusive dos componentes Razor) em formato SARIF:
+    obj/<Configuração>/<TFM>/<Projeto>.sarif. Gerados em todo build, também pelo Visual Studio; úteis para
+    CI e para analisar a compilação fora da IDE. Para desligar: dotnet build -p:ArtDashSarifLog=false
+  -->
+  <Target Name="ArtDashSarifLog" BeforeTargets="CoreCompile" Condition="'$(ArtDashSarifLog)' != 'false' and '$(ErrorLog)' == ''">
+    <PropertyGroup>
+      <ErrorLog>$(IntermediateOutputPath)$(MSBuildProjectName).sarif,version=2.1</ErrorLog>
+    </PropertyGroup>
+  </Target>
+</Project>

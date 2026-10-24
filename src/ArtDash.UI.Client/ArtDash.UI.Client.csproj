@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <!--
+    The Blazor components (InteractiveServer, prerender off): layouts, pages, dialogs and the client
+    services that talk to the REST API. A Razor class library, so its static files are served under
+    _content/ArtDash.UI.Client/ by the host.
+  -->
+  <PropertyGroup>
+    <RootNamespace>ArtDash.UI.Client</RootNamespace>
+    <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MudBlazor" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ArtDash.Shared\ArtDash.Shared.csproj" />
+  </ItemGroup>
+
+</Project>

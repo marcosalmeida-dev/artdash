@@ -1,0 +1,143 @@
+@page "/admin/configuracoes/loja"
+@attribute [Authorize(Roles = AppRoles.Admin)]
+@inject SettingsApi Settings
+@inject StoreState Store
+@inject UiActions Ui
+
+@* Company data shown on the storefront, the store address (map centre and route start) and delivery pricing. *@
+<div class="ad-page ad-page--narrow">
+    <PageHeader Title="@L["StoreSettings.Title"]" Subtitle="@L["StoreSettings.Subtitle"]" Icon="@Icons.Material.Rounded.Store" />
+
+    @if (_request is null)
+    {
+        <LoadingScreen />
+    }
+    else
+    {
+        <div class="ad-stack">
+            <section class="ad-card">
+                <h2 class="ad-card__title">@L["StoreSettings.Company"]</h2>
+                <MudGrid Spacing="2">
+                    <MudItem xs="12" sm="8">
+                        <MudTextField T="string" @bind-Value="_request.Name" Label="@L["StoreSettings.Name"]" HelperText="@L["StoreSettings.NameHint"]"
+                                      Variant="Variant.Outlined" Margin="Margin.Dense" Required="true" RequiredError="@L["Validation.Required"]"
+                                      MaxLength="150" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudTextField T="string" @bind-Value="_request.Document" Label="@L["StoreSettings.Document"]"
+                                      Variant="Variant.Outlined" Margin="Margin.Dense" MaxLength="18" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudTextField T="string" @bind-Value="_request.Phone" Label="@L["StoreSettings.Phone"]" Variant="Variant.Outlined"
+                                      Margin="Margin.Dense" InputType="InputType.Telephone" MaxLength="20" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudTextField T="string" @bind-Value="_request.WhatsApp" Label="@L["StoreSettings.WhatsApp"]" Variant="Variant.Outlined"
+                                      Margin="Margin.Dense" InputType="InputType.Telephone" MaxLength="20" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudTextField T="string" @bind-Value="_request.Email" Label="@L["StoreSettings.Email"]" Variant="Variant.Outlined"
+                                      Margin="Margin.Dense" InputType="InputType.Email" MaxLength="150" />
+                    </MudItem>
+                    <MudItem xs="12" sm="8">
+                        <MudTextField T="string" @bind-Value="_request.OpeningHours" Label="@L["StoreSettings.OpeningHours"]"
+                                      HelperText="@L["StoreSettings.OpeningHoursHint"]" Variant="Variant.Outlined" Margin="Margin.Dense" MaxLength="300" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudSelect T="string" @bind-Value="_request.TimeZoneId" Label="@L["StoreSettings.TimeZone"]" Variant="Variant.Outlined"
+                                   Margin="Margin.Dense" ToStringFunc="ZoneLabel">
+                            @foreach (var zone in TimeZones)
+                            {
+                                <MudSelectItem T="string" Value="@zone.Id">@zone.Label</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                </MudGrid>
+            </section>
+
+            <section class="ad-card">
+                <h2 class="ad-card__title">@L["StoreSettings.Address"]</h2>
+                <p class="ad-muted ad-small mb-3">@L["StoreSettings.AddressHint"]</p>
+                <AddressEditor Address="_request.Address" Required="false" />
+            </section>
+
+            <section class="ad-card">
+                <h2 class="ad-card__title">@L["StoreSettings.Delivery"]</h2>
+                <MudGrid Spacing="2">
+                    <MudItem xs="12" sm="4">
+                        <MudNumericField T="decimal" @bind-Value="_request.DeliveryFee" Label="@L["StoreSettings.DeliveryFee"]"
+                                         Variant="Variant.Outlined" Margin="Margin.Dense" Min="0m" Format="N2" Culture="@Fmt.Culture"
+                                         Adornment="Adornment.Start" AdornmentText="R$" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudNumericField T="decimal?" @bind-Value="_request.FreeDeliveryThreshold" Label="@L["StoreSettings.FreeAbove"]"
+                                         HelperText="@L["StoreSettings.EmptyDisables"]" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                         Min="0m" Format="N2" Culture="@Fmt.Culture" Adornment="Adornment.Start" AdornmentText="R$" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudNumericField T="decimal?" @bind-Value="_request.MinimumOrderAmount" Label="@L["StoreSettings.MinimumOrder"]"
+                                         HelperText="@L["StoreSettings.EmptyDisables"]" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                         Min="0m" Format="N2" Culture="@Fmt.Culture" Adornment="Adornment.Start" AdornmentText="R$" />
+                    </MudItem>
+                </MudGrid>
+            </section>
+
+            <div class="ad-form-actions">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" DropShadow="false" Disabled="_saving"
+                           StartIcon="@Icons.Material.Rounded.Save" OnClick="SaveAsync">@L["Common.Save"]</MudButton>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>Brazilian time zones (IANA ids work on Windows and Linux with .NET's ICU support).</summary>
+    private static readonly (string Id, string Label)[] TimeZones =
+    [
+        ("America/Sao_Paulo", "Brasília (SP, RJ, MG, Sul, GO, DF...)"),
+        ("America/Bahia", "Bahia"),
+        ("America/Fortaleza", "Fortaleza (CE, RN, PB, PI, MA)"),
+        ("America/Recife", "Recife (PE)"),
+        ("America/Maceio", "Maceió (AL, SE)"),
+        ("America/Belem", "Belém (PA, AP)"),
+        ("America/Araguaina", "Araguaína (TO)"),
+        ("America/Cuiaba", "Cuiabá (MT)"),
+        ("America/Campo_Grande", "Campo Grande (MS)"),
+        ("America/Manaus", "Manaus (AM)"),
+        ("America/Porto_Velho", "Porto Velho (RO)"),
+        ("America/Boa_Vista", "Boa Vista (RR)"),
+        ("America/Rio_Branco", "Rio Branco (AC)"),
+        ("America/Noronha", "Fernando de Noronha")
+    ];
+
+    private StoreSettingsDto? _request;
+    private bool _saving;
+
+    protected override async Task OnInitializedAsync() =>
+        _request = await Ui.LoadAsync(() => Settings.GetStoreAsync());
+
+    private static string ZoneLabel(string? id) =>
+        TimeZones.FirstOrDefault(z => z.Id == id).Label ?? id ?? string.Empty;
+
+    private async Task SaveAsync()
+    {
+        if (_request is null)
+        {
+            return;
+        }
+
+        _saving = true;
+        var request = _request;
+        if (request.Address.IsEmpty && string.IsNullOrWhiteSpace(request.Address.ZipCode))
+        {
+            request.Address = new AddressDto();
+        }
+
+        if (await Ui.RunAsync(() => Settings.UpdateStoreAsync(request), L["StoreSettings.Saved"]))
+        {
+            await Store.ReloadAsync();
+        }
+
+        _saving = false;
+    }
+}

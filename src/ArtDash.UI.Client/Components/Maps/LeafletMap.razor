@@ -1,0 +1,135 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+@*
+    Leaflet + OpenStreetMap tiles (no API key). Pass new Markers/Trail instances to redraw them, or use
+    the methods (UpsertMarkerAsync, AppendTrailAsync) for frequent live updates such as GPS positions.
+*@
+<div class="ad-map @Class" style="height:@Height">
+    <div id="@_id" class="ad-map__canvas"></div>
+    @if (!_ready && _failed)
+    {
+        <div class="ad-map__fallback">
+            <MudIcon Icon="@Icons.Material.Rounded.MapsHomeWork" />
+            <span>@L["Map.Unavailable"]</span>
+        </div>
+    }
+</div>
+
+@code {
+    private const string ModulePath = "./_content/ArtDash.UI.Client/js/map.js";
+
+    private readonly string _id = $"map-{Guid.NewGuid():N}";
+    private IJSObjectReference? _module;
+    private bool _ready;
+    private bool _failed;
+    private IReadOnlyList<MapMarker>? _renderedMarkers;
+    private IReadOnlyList<MapPoint>? _renderedTrail;
+    private bool _fittedOnce;
+
+    [Parameter] public IReadOnlyList<MapMarker> Markers { get; set; } = [];
+
+    [Parameter] public IReadOnlyList<MapPoint>? Trail { get; set; }
+
+    [Parameter] public string TrailColor { get; set; } = "#2F6FED";
+
+    /// <summary>Initial centre when there are no markers (the store, usually).</summary>
+    [Parameter] public double? CenterLatitude { get; set; }
+
+    [Parameter] public double? CenterLongitude { get; set; }
+
+    [Parameter] public int Zoom { get; set; } = 13;
+
+    [Parameter] public string Height { get; set; } = "360px";
+
+    [Parameter] public string? Class { get; set; }
+
+    /// <summary>Re-fit the view every time the markers change (otherwise only the first time).</summary>
+    [Parameter] public bool AutoFit { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                _module = await JS.InvokeAsync<IJSObjectReference>("import", ModulePath);
+                _ready = await _module.InvokeAsync<bool>("create", _id,
+                    CenterLatitude ?? -23.5505, CenterLongitude ?? -46.6333, Zoom);
+            }
+            catch (JSException)
+            {
+                _ready = false;
+            }
+
+            if (!_ready)
+            {
+                _failed = true;
+                StateHasChanged();
+                return;
+            }
+        }
+
+        if (!_ready || _module is null)
+        {
+            return;
+        }
+
+        if (!ReferenceEquals(_renderedMarkers, Markers))
+        {
+            var fit = AutoFit || !_fittedOnce;
+            await _module.InvokeVoidAsync("setMarkers", _id, Markers, fit);
+            _fittedOnce |= Markers.Count > 0;
+            _renderedMarkers = Markers;
+        }
+
+        if (!ReferenceEquals(_renderedTrail, Trail))
+        {
+            await _module.InvokeVoidAsync("setTrail", _id, Trail ?? [], TrailColor);
+            _renderedTrail = Trail;
+        }
+    }
+
+    /// <summary>Adds or moves one marker without redrawing the others.</summary>
+    public async Task UpsertMarkerAsync(MapMarker marker, bool follow = false)
+    {
+        if (_ready && _module is not null)
+        {
+            await _module.InvokeVoidAsync("upsertMarker", _id, marker, follow);
+        }
+    }
+
+    public async Task AppendTrailAsync(MapPoint point)
+    {
+        if (_ready && _module is not null)
+        {
+            await _module.InvokeVoidAsync("appendTrail", _id, point, TrailColor);
+        }
+    }
+
+    public async Task FitAsync()
+    {
+        if (_ready && _module is not null)
+        {
+            await _module.InvokeVoidAsync("fit", _id);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_module is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _module.InvokeVoidAsync("destroy", _id);
+            await _module.DisposeAsync();
+        }
+        catch (Exception ex) when (ex is JSDisconnectedException or JSException)
+        {
+            // The circuit is gone; the browser dropped the map with the page.
+        }
+    }
+}

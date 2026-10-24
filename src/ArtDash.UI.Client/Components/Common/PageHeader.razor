@@ -1,0 +1,47 @@
+﻿@inherits BrandAwareComponent
+
+<PageTitle>@Title · @Brand.Current.DisplayName</PageTitle>
+
+<header class="ad-page-header">
+    <div class="ad-page-header__main">
+        @if (BackHref is not null)
+        {
+            <MudIconButton Href="@BackHref" Icon="@Icons.Material.Rounded.ArrowBack" Size="Size.Small"
+                           Class="ad-page-header__back" aria-label="@L["Common.Back"]" />
+        }
+        @if (Icon is not null)
+        {
+            <span class="ad-page-header__icon"><MudIcon Icon="@Icon" /></span>
+        }
+        <div class="ad-page-header__text">
+            @if (!string.IsNullOrWhiteSpace(Overline))
+            {
+                <span class="ad-page-header__overline">@Overline</span>
+            }
+            <h1 class="ad-page-header__title">@Title</h1>
+            @if (!string.IsNullOrWhiteSpace(Subtitle))
+            {
+                <p class="ad-page-header__subtitle">@Subtitle</p>
+            }
+            @Metadata
+        </div>
+    </div>
+    @if (ChildContent is not null)
+    {
+        <div class="ad-page-header__actions">@ChildContent</div>
+    }
+</header>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter] public string? Subtitle { get; set; }
+    [Parameter] public string? Overline { get; set; }
+    [Parameter] public string? Icon { get; set; }
+    [Parameter] public string? BackHref { get; set; }
+
+    /// <summary>Extra line under the title (chips, badges).</summary>
+    [Parameter] public RenderFragment? Metadata { get; set; }
+
+    /// <summary>Actions on the right (buttons).</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

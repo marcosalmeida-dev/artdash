@@ -1,0 +1,113 @@
+@using ArtDash.Application.Common.Messaging
+@using ArtDash.Application.Features.Branding
+@using ArtDash.Shared.Contracts.Branding
+@inject ISender Sender
+@inject ILogger<App> Logger
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="utf-8" />
+
+    @* viewport-fit=cover makes env(safe-area-inset-*) work: the bottom nav and the driver app pad
+       themselves with it so nothing sits under the iPhone home indicator. *@
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <base href="/" />
+
+    @* Rendered on the server for the tenant of this host, so the very first paint already carries the
+       company's name, icon, font and colours (the circuit takes over from there). *@
+    <title>@_branding.DisplayName</title>
+    <meta name="description" content="@(_branding.Tagline ?? "Pedidos online com entrega e rastreio em tempo real.")" />
+    <meta name="theme-color" content="#FFFFFF" />
+    <meta name="application-name" content="@_branding.DisplayName" />
+    <meta name="apple-mobile-web-app-title" content="@_branding.DisplayName" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="@_branding.DisplayName" />
+    <meta property="og:locale" content="pt_BR" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="@IconUrl" />
+    <link rel="apple-touch-icon" href="@(_branding.IconUrl ?? "/img/icon-192.png")" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link id="ad-brand-font" rel="stylesheet" href="@BrandCss.FontStylesheetUrl(_branding.FontFamily)" />
+
+    <link rel="stylesheet" href="@Assets["_content/MudBlazor/MudBlazor.min.css"]" />
+    <link rel="stylesheet" href="@Assets["css/utilities.css"]" />
+    <link rel="stylesheet" href="@Assets["ArtDash.UI.styles.css"]" />
+
+    @* Shell chrome (app bars, drawer, cards). Global rather than scoped because nearly every rule has
+       to reach a MudBlazor internal; it must come after MudBlazor's sheet to win on equal specificity. *@
+    <link rel="stylesheet" href="@Assets["css/app.css"]" />
+
+    @* Loaded in <head> so it is already parsed when the server disappears mid-session. *@
+    <link rel="stylesheet" href="@Assets["css/reconnect.css"]" />
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+    <style id="ad-brand-vars">@((MarkupString)BrandCss.RootRule(_branding))</style>
+
+    <ImportMap />
+    <HeadOutlet @rendermode="new InteractiveServerRenderMode(prerender: false)" />
+
+    @* Service worker + install prompt. In <head> because beforeinstallprompt fires once and cannot be
+       replayed; module scripts are deferred, so this still runs after parsing. *@
+    <script type="module" src="@Assets["js/pwa.js"]"></script>
+</head>
+
+<body>
+    @* Shown until the circuit draws the first screen (prerender is off, so the server document has no
+       page content). app.css hides it as soon as the app shell exists. *@
+    <div id="app-splash" aria-hidden="true">
+        <img src="@IconUrl" alt="" />
+        <span>@_branding.DisplayName</span>
+    </div>
+
+    <Routes @rendermode="new InteractiveServerRenderMode(prerender: false)" />
+
+    @* Blazor drives this element's classes while the circuit is down; reconnect.js fills the texts. *@
+    <div id="components-reconnect-modal" data-nosnippet>
+        <div class="reconnect-card">
+            <div class="reconnect-spinner" aria-hidden="true"></div>
+            <p id="reconnect-title" role="status" aria-live="polite"></p>
+            <p id="reconnect-detail"></p>
+            <button id="reconnect-retry" type="button"></button>
+        </div>
+    </div>
+
+    @* autostart="false": reconnect.js starts Blazor with a retry schedule long enough to survive a
+       deployment. It must come after MudBlazor's script, whose globals components use right away. *@
+    <script src="_framework/blazor.web.js" autostart="false"></script>
+    <script src="@Assets["_content/MudBlazor/MudBlazor.min.js"]"></script>
+    <script src="@Assets["js/reconnect.js"]"></script>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+</body>
+
+</html>
+
+@code {
+    private BrandingDto _branding = BrandingDto.Default;
+
+    private string IconUrl => _branding.IconUrl ?? "/img/icon.svg";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _branding = await Sender.Send(new GetBrandingQuery());
+        }
+        catch (Exception ex)
+        {
+            // The document must render even when the database is unreachable; the neutral brand
+            // stands in and the circuit reports the real problem.
+            Logger.LogWarning(ex, "Could not load the branding for the document head");
+        }
+    }
+}

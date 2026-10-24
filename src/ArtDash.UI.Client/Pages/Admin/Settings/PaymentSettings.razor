@@ -1,0 +1,153 @@
+@page "/admin/configuracoes/pagamentos"
+@attribute [Authorize(Roles = AppRoles.Admin)]
+@inject SettingsApi Settings
+@inject StoreState Store
+@inject BrowserUtil Browser
+@inject UiActions Ui
+
+@*
+    How customers can pay: online with Mercado Pago (PIX, credit and debit card — Checkout Transparente),
+    at the door, or invoiced (B2B, pay later). Secrets are write-only: they never come back from the API,
+    and leaving the field empty keeps what is stored.
+*@
+<div class="ad-page ad-page--narrow">
+    <PageHeader Title="@L["PaymentSettings.Title"]" Subtitle="@L["PaymentSettings.Subtitle"]" Icon="@Icons.Material.Rounded.Payments" />
+
+    @if (_request is null)
+    {
+        <LoadingScreen />
+    }
+    else
+    {
+        <div class="ad-stack">
+            <section class="ad-card">
+                <div class="ad-card__head">
+                    <h2 class="ad-card__title">@L["PaymentSettings.Online"]</h2>
+                    <StatusChip Text="@(OnlineReady ? L["PaymentSettings.Configured"] : L["PaymentSettings.NotConfigured"])"
+                                Color="@(OnlineReady ? Color.Success : Color.Warning)"
+                                Icon="@(OnlineReady ? Icons.Material.Rounded.CheckCircle : Icons.Material.Rounded.Warning)" />
+                </div>
+                <p class="ad-muted ad-small mb-3">@L["PaymentSettings.OnlineHint"]</p>
+
+                <MudGrid Spacing="2">
+                    <MudItem xs="12">
+                        <MudTextField T="string" @bind-Value="_request.MercadoPagoPublicKey" Label="@L["PaymentSettings.PublicKey"]"
+                                      HelperText="@L["PaymentSettings.PublicKeyHint"]" Variant="Variant.Outlined" Margin="Margin.Dense" MaxLength="200" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" @bind-Value="_request.MercadoPagoAccessToken" Label="@L["PaymentSettings.AccessToken"]"
+                                      HelperText="@(_request.HasAccessToken ? L["PaymentSettings.SecretStored"] : L["PaymentSettings.AccessTokenHint"])"
+                                      Placeholder="@(_request.HasAccessToken ? "••••••••••••" : null)"
+                                      Variant="Variant.Outlined" Margin="Margin.Dense" InputType="InputType.Password" MaxLength="500" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField T="string" @bind-Value="_request.MercadoPagoWebhookSecret" Label="@L["PaymentSettings.WebhookSecret"]"
+                                      HelperText="@(_request.HasWebhookSecret ? L["PaymentSettings.SecretStored"] : L["PaymentSettings.WebhookSecretHint"])"
+                                      Placeholder="@(_request.HasWebhookSecret ? "••••••••••••" : null)"
+                                      Variant="Variant.Outlined" Margin="Margin.Dense" InputType="InputType.Password" MaxLength="500" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudSwitch T="bool" @bind-Value="_request.MercadoPagoSandbox" Color="Color.Warning" Label="@L["PaymentSettings.Sandbox"]" />
+                    </MudItem>
+                </MudGrid>
+
+                <h3 class="ad-section-title">@L["PaymentSettings.Methods"]</h3>
+                <div class="ad-switches ad-switches--inline">
+                    <MudSwitch T="bool" @bind-Value="_request.OnlinePixEnabled" Color="Color.Primary" Label="@L.Enum(PaymentMethod.Pix)" />
+                    <MudSwitch T="bool" @bind-Value="_request.OnlineCreditCardEnabled" Color="Color.Primary" Label="@L.Enum(PaymentMethod.CreditCard)" />
+                    <MudSwitch T="bool" @bind-Value="_request.OnlineDebitCardEnabled" Color="Color.Primary" Label="@L.Enum(PaymentMethod.DebitCard)" />
+                </div>
+                <MudGrid Spacing="2" Class="mt-1">
+                    <MudItem xs="12" sm="6">
+                        <MudNumericField T="int" @bind-Value="_request.MaxInstallments" Label="@L["PaymentSettings.MaxInstallments"]"
+                                         HelperText="@L["PaymentSettings.MaxInstallmentsHint"]" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                         Min="1" Max="12" Disabled="@(!_request.OnlineCreditCardEnabled)" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudNumericField T="int" @bind-Value="_request.PixExpirationMinutes" Label="@L["PaymentSettings.PixExpiration"]"
+                                         Variant="Variant.Outlined" Margin="Margin.Dense" Min="5" Max="1440"
+                                         Adornment="Adornment.End" AdornmentText="min" Disabled="@(!_request.OnlinePixEnabled)" />
+                    </MudItem>
+                </MudGrid>
+
+                <h3 class="ad-section-title">@L["PaymentSettings.Webhook"]</h3>
+                @if (string.IsNullOrWhiteSpace(_request.WebhookUrl))
+                {
+                    <MudAlert Severity="Severity.Info" Dense="true">@L["PaymentSettings.WebhookUnavailable"]</MudAlert>
+                }
+                else
+                {
+                    <p class="ad-muted ad-small mb-2">@L["PaymentSettings.WebhookHint"]</p>
+                    <div class="ad-copy-field">
+                        <code>@_request.WebhookUrl</code>
+                        <MudIconButton Icon="@Icons.Material.Rounded.ContentCopy" Size="Size.Small" aria-label="@L["Common.Copy"]"
+                                       OnClick="CopyWebhookAsync" />
+                    </div>
+                }
+            </section>
+
+            <section class="ad-card">
+                <h2 class="ad-card__title">@L["PaymentSettings.Offline"]</h2>
+                <div class="ad-switches">
+                    <MudSwitch T="bool" @bind-Value="_request.PayOnDeliveryEnabled" Color="Color.Primary" Label="@L["PaymentSettings.PayOnDelivery"]" />
+                    <p class="ad-muted ad-small">@L["PaymentSettings.PayOnDeliveryHint"]</p>
+                    <MudSwitch T="bool" @bind-Value="_request.InvoicingEnabled" Color="Color.Primary" Label="@L["PaymentSettings.Invoicing"]" />
+                    <p class="ad-muted ad-small">@L["PaymentSettings.InvoicingHint"]</p>
+                </div>
+                @if (_request.InvoicingEnabled)
+                {
+                    <MudNumericField T="int" @bind-Value="_request.DefaultPaymentTermDays" Label="@L["PaymentSettings.DefaultTerm"]"
+                                     HelperText="@L["PaymentSettings.DefaultTermHint"]" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                     Min="1" Max="180" Adornment="Adornment.End" AdornmentText="@L["Customers.Days"]" Class="ad-field--narrow mt-2" />
+                }
+            </section>
+
+            <div class="ad-form-actions">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" DropShadow="false" Disabled="_saving"
+                           StartIcon="@Icons.Material.Rounded.Save" OnClick="SaveAsync">@L["Common.Save"]</MudButton>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private PaymentSettingsDto? _request;
+    private bool _saving;
+
+    private bool OnlineReady =>
+        _request is not null &&
+        !string.IsNullOrWhiteSpace(_request.MercadoPagoPublicKey) &&
+        (_request.HasAccessToken || !string.IsNullOrWhiteSpace(_request.MercadoPagoAccessToken)) &&
+        (_request.OnlinePixEnabled || _request.OnlineCreditCardEnabled || _request.OnlineDebitCardEnabled);
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync() => _request = await Ui.LoadAsync(() => Settings.GetPaymentsAsync());
+
+    private async Task SaveAsync()
+    {
+        if (_request is null)
+        {
+            return;
+        }
+
+        _saving = true;
+        var request = _request;
+        if (await Ui.RunAsync(() => Settings.UpdatePaymentsAsync(request), L["PaymentSettings.Saved"]))
+        {
+            // Reload: the secrets come back empty with their "stored" flags, and the storefront options change.
+            await LoadAsync();
+            await Store.ReloadAsync();
+        }
+
+        _saving = false;
+    }
+
+    private async Task CopyWebhookAsync()
+    {
+        if (_request?.WebhookUrl is { } url && await Browser.CopyAsync(url))
+        {
+            Ui.Success(L["PaymentSettings.WebhookCopied"]);
+        }
+    }
+}

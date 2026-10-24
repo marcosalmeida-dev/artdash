@@ -1,0 +1,198 @@
+﻿@page "/admin/entregas/{Id:guid}"
+@attribute [Authorize(Roles = AppRoles.Staff)]
+@implements IAsyncDisposable
+@inject DeliveriesApi Deliveries
+@inject StoreState Store
+@inject RealtimeClient Realtime
+@inject IDialogService Dialogs
+@inject UiActions Ui
+
+<div class="ad-page">
+    @if (_delivery is null)
+    {
+        <PageHeader Title="@L["Deliveries.Title"]" BackHref="/admin/entregas" />
+        <LoadingScreen />
+    }
+    else
+    {
+        <PageHeader Title="@L["Deliveries.RunNumber", _delivery.Number]" BackHref="/admin/entregas"
+                    Subtitle="@L["Deliveries.ScheduledOn", Fmt.DateAndTime(Store.ToLocal(_delivery.ScheduledFor))]">
+            <Metadata>
+                <div class="ad-chips">
+                    <StatusChip Text="@L.Enum(_delivery.Status)" Color="@StatusStyles.For(_delivery.Status)" Variant="Variant.Filled" />
+                    <StatusChip Text="@($"{_delivery.DriverName}")" Icon="@Icons.Material.Rounded.Badge" />
+                    <StatusChip Text="@($"{_delivery.VehiclePlate} {_delivery.VehicleModel}")" Icon="@StatusStyles.Icon(_delivery.VehicleType)" />
+                </div>
+            </Metadata>
+            <ChildContent>
+                @if (!string.IsNullOrWhiteSpace(_delivery.DriverPhone))
+                {
+                    <MudButton Href="@Fmt.TelLink(_delivery.DriverPhone)" Variant="Variant.Outlined" StartIcon="@Icons.Material.Rounded.Call">@L["Deliveries.CallDriver"]</MudButton>
+                }
+                @if (_delivery.Status == DeliveryStatus.Planned)
+                {
+                    <MudButton Variant="Variant.Outlined" Color="Color.Error" StartIcon="@Icons.Material.Rounded.Cancel" OnClick="CancelAsync">@L["Deliveries.Cancel"]</MudButton>
+                }
+            </ChildContent>
+        </PageHeader>
+
+        @if (!string.IsNullOrWhiteSpace(_delivery.CancellationReason))
+        {
+            <MudAlert Severity="Severity.Error" Dense="true" Class="mb-3">@_delivery.CancellationReason</MudAlert>
+        }
+
+        <div class="ad-split ad-split--wide">
+            <section class="ad-card ad-card--flush">
+                <LeafletMap @ref="_map" Markers="_markers" Trail="_trail" Height="460px" />
+                @if (_delivery.LastPosition is { } position)
+                {
+                    <div class="ad-pad ad-muted ad-small">
+                        @L["Deliveries.LastSeen", Fmt.Time(Store.ToLocal(position.RecordedAt))]
+                        @if (position.SpeedKmh is { } speed)
+                        {
+                            <span> · @L["Deliveries.Speed", Math.Round(speed)]</span>
+                        }
+                    </div>
+                }
+            </section>
+
+            <aside class="ad-card ad-card--flush">
+                <h2 class="ad-card__title ad-card__title--pad">@L["Deliveries.StopsTitle", _delivery.Stops.Count]</h2>
+                <div class="ad-rows">
+                    @foreach (var stop in _delivery.Stops.OrderBy(s => s.Sequence))
+                    {
+                        <div class="ad-row ad-row--static ad-row--top">
+                            <span class="ad-seq ad-seq--@stop.Status.ToString().ToLowerInvariant()">@stop.Sequence</span>
+                            <span class="ad-row__main">
+                                <a class="ad-link" href="@($"/admin/pedidos/{stop.OrderId}")"><strong>#@stop.OrderNumber · @stop.CustomerName</strong></a>
+                                <span class="ad-muted ad-small">@stop.Address.ToSingleLine()</span>
+                                @if (stop.AmountToCollect > 0)
+                                {
+                                    <span class="ad-small ad-text-warning">@L["Deliveries.Collect", Fmt.Money(stop.AmountToCollect), L.Enum(stop.PaymentMethod, L["Deliveries.AnyMethod"])]</span>
+                                }
+                                @if (stop.Status == DeliveryStopStatus.Delivered && stop.CompletedAt is { } done)
+                                {
+                                    <span class="ad-small ad-text-success">@L["Deliveries.DeliveredAt", Fmt.Time(Store.ToLocal(done)), stop.RecipientName ?? "—"]</span>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(stop.FailureReason))
+                                {
+                                    <span class="ad-small ad-text-error">@stop.FailureReason</span>
+                                }
+                            </span>
+                            <StatusChip Text="@L.Enum(stop.Status)" Color="@StatusStyles.For(stop.Status)" />
+                        </div>
+                    }
+                </div>
+            </aside>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private DeliveryDto? _delivery;
+    private LeafletMap? _map;
+    private IReadOnlyList<MapMarker> _markers = [];
+    private IReadOnlyList<MapPoint> _trail = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+        Realtime.PositionUpdated += OnPositionAsync;
+        Realtime.DeliveryChanged += OnDeliveryChangedAsync;
+        Realtime.OrderChanged += OnOrderChangedAsync;
+        await Realtime.EnsureStartedAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _delivery = await Ui.LoadAsync(() => Deliveries.GetAsync(Id)) ?? _delivery;
+        var trail = await Ui.LoadAsync(() => Deliveries.GetTrailAsync(Id));
+        _trail = trail?.Select(p => new MapPoint(p.Latitude, p.Longitude)).ToList() ?? [];
+        BuildMarkers();
+    }
+
+    private void BuildMarkers()
+    {
+        if (_delivery is null)
+        {
+            return;
+        }
+
+        var markers = _delivery.Stops
+            .Where(s => s.Address.HasCoordinates)
+            .Select(s => new MapMarker(
+                s.Id.ToString(), s.Address.Latitude!.Value, s.Address.Longitude!.Value,
+                s.Status switch
+                {
+                    DeliveryStopStatus.Delivered => MapMarkerKinds.StopDone,
+                    DeliveryStopStatus.Failed => MapMarkerKinds.StopFailed,
+                    _ => MapMarkerKinds.Stop
+                },
+                s.Sequence.ToString(),
+                $"#{s.OrderNumber} · {s.CustomerName}\n{s.Address.ToSingleLine()}"))
+            .ToList();
+
+        if (_delivery.LastPosition is { } position)
+        {
+            markers.Add(VehicleMarker(position));
+        }
+
+        if (Store.Info.Address is { HasCoordinates: true } store)
+        {
+            markers.Add(new MapMarker("store", store.Latitude!.Value, store.Longitude!.Value, MapMarkerKinds.Store, null, Store.Info.Name));
+        }
+
+        _markers = markers;
+    }
+
+    private static MapMarker VehicleMarker(VehiclePositionDto position) =>
+        new("vehicle", position.Latitude, position.Longitude, MapMarkerKinds.Vehicle, position.VehiclePlate, position.DriverName, position.Heading);
+
+    private Task OnPositionAsync(VehiclePositionDto position) =>
+        position.DeliveryId != Id ? Task.CompletedTask : InvokeAsync(async () =>
+        {
+            if (_map is null)
+            {
+                return;
+            }
+
+            await _map.UpsertMarkerAsync(VehicleMarker(position));
+            await _map.AppendTrailAsync(new MapPoint(position.Latitude, position.Longitude));
+            if (_delivery is not null)
+            {
+                _delivery = _delivery with { LastPosition = position };
+                StateHasChanged();
+            }
+        });
+
+    private Task OnDeliveryChangedAsync(DeliveryChangedMessage message) =>
+        message.DeliveryId != Id ? Task.CompletedTask : ReloadAsync();
+
+    private Task OnOrderChangedAsync(OrderChangedMessage message) =>
+        _delivery?.Stops.Any(s => s.OrderId == message.OrderId) == true ? ReloadAsync() : Task.CompletedTask;
+
+    private Task ReloadAsync() => InvokeAsync(async () =>
+    {
+        await LoadAsync();
+        StateHasChanged();
+    });
+
+    private async Task CancelAsync()
+    {
+        var reason = await Dialogs.PromptAsync(L["Deliveries.Cancel"], L["Deliveries.CancelReason"], L["Deliveries.CancelYes"], L["Common.Back"], color: Color.Error);
+        if (reason is not null && await Ui.RunAsync(() => Deliveries.CancelAsync(Id, reason), L["Deliveries.Cancelled"]))
+        {
+            await LoadAsync();
+        }
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        Realtime.PositionUpdated -= OnPositionAsync;
+        Realtime.DeliveryChanged -= OnDeliveryChangedAsync;
+        Realtime.OrderChanged -= OnOrderChangedAsync;
+        return ValueTask.CompletedTask;
+    }
+}

@@ -1,0 +1,269 @@
+@page "/admin/configuracoes/marca"
+@attribute [Authorize(Roles = AppRoles.Admin)]
+@implements IDisposable
+@inject BrandingApi Branding
+@inject BrandingState Brand
+@inject IDialogService Dialogs
+@inject UiActions Ui
+
+@*
+    White-label editor: name, logos, palette, font and corner radius. Every change is previewed live on the
+    whole app (this page included) and only reaches customers when saved. Leaving without saving discards it.
+*@
+<div class="ad-page ad-page--wide">
+    <PageHeader Title="@L["Branding.Title"]" Subtitle="@L["Branding.Subtitle"]" Icon="@Icons.Material.Rounded.Palette">
+        @if (_dirty)
+        {
+            <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Rounded.Undo" OnClick="DiscardAsync" Disabled="_saving">@L["Common.Discard"]</MudButton>
+        }
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" DropShadow="false" StartIcon="@Icons.Material.Rounded.Save"
+                   OnClick="SaveAsync" Disabled="@(_saving || !_dirty)">@L["Branding.Publish"]</MudButton>
+    </PageHeader>
+
+    @if (!_loaded)
+    {
+        <LoadingScreen />
+    }
+    else
+    {
+        @if (_dirty)
+        {
+            <MudAlert Severity="Severity.Info" Dense="true" Class="mb-4" Icon="@Icons.Material.Rounded.Visibility">@L["Branding.PreviewNotice"]</MudAlert>
+        }
+
+        <div class="ad-split ad-split--aside">
+            <div class="ad-stack">
+                <section class="ad-card">
+                    <h2 class="ad-card__title">@L["Branding.Identity"]</h2>
+                    <MudGrid Spacing="2">
+                        <MudItem xs="12" sm="6">
+                            <MudTextField T="string" Value="@_request.DisplayName" ValueChanged="@(v => Change(() => _request.DisplayName = v))"
+                                          Label="@L["Branding.DisplayName"]" HelperText="@L["Branding.DisplayNameHint"]" Variant="Variant.Outlined"
+                                          Margin="Margin.Dense" MaxLength="100" Immediate="true" DebounceInterval="250" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField T="string" Value="@_request.Tagline" ValueChanged="@(v => Change(() => _request.Tagline = v))"
+                                          Label="@L["Branding.Tagline"]" HelperText="@L["Branding.TaglineHint"]" Variant="Variant.Outlined"
+                                          Margin="Margin.Dense" MaxLength="160" Immediate="true" DebounceInterval="250" />
+                        </MudItem>
+                    </MudGrid>
+                </section>
+
+                <section class="ad-card">
+                    <h2 class="ad-card__title">@L["Branding.Images"]</h2>
+                    <div class="ad-stack ad-stack--tight">
+                        <ImageUploadField Url="@_request.LogoUrl" UrlChanged="@(url => Change(() => _request.LogoUrl = url))"
+                                          Upload="@((content, name, type) => Branding.UploadAssetAsync(BrandAssetKind.Logo, content, name, type))"
+                                          Label="@L["Branding.Logo"]" HelperText="@L["Branding.LogoHint"]" />
+                        <ImageUploadField Url="@_request.LogoDarkUrl" UrlChanged="@(url => Change(() => _request.LogoDarkUrl = url))"
+                                          Upload="@((content, name, type) => Branding.UploadAssetAsync(BrandAssetKind.LogoDark, content, name, type))"
+                                          Label="@L["Branding.LogoDark"]" HelperText="@L["Branding.LogoDarkHint"]" DarkBackground="true" />
+                        <ImageUploadField Url="@_request.IconUrl" UrlChanged="@(url => Change(() => _request.IconUrl = url))"
+                                          Upload="@((content, name, type) => Branding.UploadAssetAsync(BrandAssetKind.Icon, content, name, type))"
+                                          Label="@L["Branding.Icon"]" HelperText="@L["Branding.IconHint"]" Square="true" />
+                    </div>
+                </section>
+
+                <section class="ad-card">
+                    <h2 class="ad-card__title">@L["Branding.Colors"]</h2>
+                    <div class="ad-presets">
+                        <span class="ad-muted ad-small">@L["Branding.Presets"]</span>
+                        @foreach (var preset in Presets)
+                        {
+                            <button type="button" class="ad-preset" title="@preset.Name" aria-label="@preset.Name" @onclick="@(() => ApplyPreset(preset))">
+                                <span style="background:@preset.Primary"></span>
+                                <span style="background:@preset.Accent"></span>
+                                <span style="background:@preset.Console"></span>
+                            </button>
+                        }
+                    </div>
+                    <div class="ad-color-grid">
+                        <ColorField Value="@_request.PrimaryColor" ValueChanged="@(c => Change(() => _request.PrimaryColor = c))"
+                                    Label="@L["Branding.Primary"]" HelperText="@L["Branding.PrimaryHint"]" />
+                        <ColorField Value="@_request.AccentColor" ValueChanged="@(c => Change(() => _request.AccentColor = c))"
+                                    Label="@L["Branding.Accent"]" HelperText="@L["Branding.AccentHint"]" />
+                        <ColorField Value="@_request.SecondaryColor" ValueChanged="@(c => Change(() => _request.SecondaryColor = c))"
+                                    Label="@L["Branding.Secondary"]" HelperText="@L["Branding.SecondaryHint"]" />
+                        <ColorField Value="@_request.ConsoleColor" ValueChanged="@(c => Change(() => _request.ConsoleColor = c))"
+                                    Label="@L["Branding.Console"]" HelperText="@L["Branding.ConsoleHint"]" />
+                    </div>
+                    @if (ColorMath.Contrast(_request.PrimaryColor, "#FFFFFF") < 3 && ColorMath.Contrast(_request.PrimaryColor, "#000000") < 3)
+                    {
+                        <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-3">@L["Branding.LowContrast"]</MudAlert>
+                    }
+                </section>
+
+                <section class="ad-card">
+                    <h2 class="ad-card__title">@L["Branding.TypeAndShape"]</h2>
+                    <MudGrid Spacing="2">
+                        <MudItem xs="12" sm="6">
+                            <MudSelect T="string" Value="@_request.FontFamily" ValueChanged="@(f => Change(() => _request.FontFamily = f))"
+                                       Label="@L["Branding.Font"]" Variant="Variant.Outlined" Margin="Margin.Dense">
+                                @foreach (var font in BrandingDefaults.Fonts)
+                                {
+                                    <MudSelectItem T="string" Value="@font">@font</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudSlider T="int" Value="@_request.BorderRadius" ValueChanged="@(r => Change(() => _request.BorderRadius = r))"
+                                       Min="0" Max="24" Step="1" Color="Color.Primary">
+                                @L["Branding.Radius", _request.BorderRadius]
+                            </MudSlider>
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudSwitch T="bool" Value="@_request.AllowDarkMode" ValueChanged="@(d => Change(() => _request.AllowDarkMode = d))"
+                                       Color="Color.Primary" Label="@L["Branding.AllowDarkMode"]" />
+                        </MudItem>
+                    </MudGrid>
+                </section>
+            </div>
+
+            <aside class="ad-brand-preview" aria-label="@L["Branding.Preview"]">
+                <h2 class="ad-card__title">@L["Branding.Preview"]</h2>
+
+                <div class="ad-brand-preview__console">
+                    @if (!string.IsNullOrWhiteSpace(_request.LogoDarkUrl ?? _request.LogoUrl))
+                    {
+                        <img src="@(_request.LogoDarkUrl ?? _request.LogoUrl)" alt="" />
+                    }
+                    else
+                    {
+                        <strong>@PreviewName</strong>
+                    }
+                    <span class="ad-brand-preview__pill">@L["Nav.Dashboard"]</span>
+                </div>
+
+                <div class="ad-brand-preview__store">
+                    <div class="ad-brand-preview__bar">
+                        @if (!string.IsNullOrWhiteSpace(_request.LogoUrl))
+                        {
+                            <img src="@_request.LogoUrl" alt="" />
+                        }
+                        else
+                        {
+                            <strong>@PreviewName</strong>
+                        }
+                    </div>
+                    <div class="ad-brand-preview__hero">
+                        <strong>@PreviewName</strong>
+                        @if (!string.IsNullOrWhiteSpace(_request.Tagline))
+                        {
+                            <span>@_request.Tagline</span>
+                        }
+                    </div>
+                    <div class="ad-brand-preview__product">
+                        <span class="ad-brand-preview__image"><MudIcon Icon="@Icons.Material.Rounded.LocalDrink" /></span>
+                        <span class="ad-brand-preview__badge">@L["Store.Featured"]</span>
+                        <strong>@L["Branding.SampleProduct"]</strong>
+                        <span class="ad-brand-preview__price">R$ 18,90</span>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" DropShadow="false" Size="Size.Small" FullWidth="true"
+                                   StartIcon="@Icons.Material.Rounded.AddShoppingCart">@L["Branding.AddToCart"]</MudButton>
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(_request.IconUrl))
+                {
+                    <div class="ad-brand-preview__icon">
+                        <img src="@_request.IconUrl" alt="" />
+                        <span class="ad-muted ad-small">@L["Branding.IconPreview"]</span>
+                    </div>
+                }
+            </aside>
+        </div>
+    }
+</div>
+
+@code {
+    private sealed record Preset(string Name, string Primary, string Secondary, string Accent, string Console);
+
+    private static readonly Preset[] Presets =
+    [
+        new("Azul", "#2F6FED", "#0F172A", "#F59E0B", "#111827"),
+        new("Verde", "#0F9D58", "#0B3D2E", "#F4B400", "#0B2A20"),
+        new("Vinho", "#9F1239", "#3F0D1B", "#F59E0B", "#1F0A12"),
+        new("Laranja", "#EA580C", "#431407", "#0EA5E9", "#1C1917"),
+        new("Roxo", "#7C3AED", "#1E1B4B", "#10B981", "#16112B"),
+        new("Grafite", "#334155", "#0F172A", "#EAB308", "#0B1120")
+    ];
+
+    private BrandingDto _saved = BrandingDto.Default;
+    private UpdateBrandingRequest _request = new();
+    private bool _loaded;
+    private bool _dirty;
+    private bool _saving;
+
+    private string PreviewName => string.IsNullOrWhiteSpace(_request.DisplayName) ? _saved.DisplayName : _request.DisplayName;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var current = await Ui.LoadAsync(() => Branding.GetAsync());
+        if (current is null)
+        {
+            return;
+        }
+
+        _saved = current;
+        _request = UpdateBrandingRequest.From(current);
+        _loaded = true;
+    }
+
+    private void Change(Action change)
+    {
+        if (!_loaded)
+        {
+            return;
+        }
+
+        change();
+        _dirty = true;
+        Brand.Preview(_request.ToPreview(_saved.DisplayName));
+    }
+
+    private void ApplyPreset(Preset preset) => Change(() =>
+    {
+        _request.PrimaryColor = preset.Primary;
+        _request.SecondaryColor = preset.Secondary;
+        _request.AccentColor = preset.Accent;
+        _request.ConsoleColor = preset.Console;
+    });
+
+    private async Task DiscardAsync()
+    {
+        var confirmed = await Dialogs.ConfirmAsync(L["Branding.DiscardTitle"], L["Branding.DiscardText"], L["Common.Discard"], L["Common.Cancel"],
+            Color.Warning, Icons.Material.Rounded.Undo);
+        if (!confirmed)
+        {
+            return;
+        }
+
+        _request = UpdateBrandingRequest.From(_saved);
+        _dirty = false;
+        Brand.CancelPreview();
+    }
+
+    private async Task SaveAsync()
+    {
+        _saving = true;
+        BrandingDto? saved = null;
+        var request = _request;
+        if (await Ui.RunAsync(async () => saved = await Branding.UpdateAsync(request), L["Branding.Saved"]) && saved is not null)
+        {
+            _saved = saved;
+            _request = UpdateBrandingRequest.From(saved);
+            _dirty = false;
+            Brand.Apply(saved);
+        }
+
+        _saving = false;
+    }
+
+    public void Dispose()
+    {
+        // Leaving with unsaved changes: back to the published brand.
+        if (_dirty)
+        {
+            Brand.CancelPreview();
+        }
+    }
+}

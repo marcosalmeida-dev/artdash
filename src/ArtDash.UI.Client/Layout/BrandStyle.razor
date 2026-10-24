@@ -1,0 +1,20 @@
+@inherits BrandAwareComponent
+@inject BrowserUtil Browser
+
+@* Live brand variables (--ad-*): App.razor writes them for the first paint, this keeps them current
+   (a live preview in the branding editor re-dresses the whole app). *@
+<style>@((MarkupString)BrandCss.RootRule(Brand.Current))</style>
+
+@code {
+    private string? _font;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var font = BrandCss.SafeFont(Brand.Current.FontFamily);
+        if (font != _font)
+        {
+            _font = font;
+            await Browser.EnsureFontAsync(BrandCss.FontStylesheetUrl(font));
+        }
+    }
+}

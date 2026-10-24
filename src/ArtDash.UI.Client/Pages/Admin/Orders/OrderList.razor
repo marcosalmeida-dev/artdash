@@ -1,0 +1,129 @@
+@page "/admin/pedidos"
+@attribute [Authorize(Roles = AppRoles.Staff)]
+@inject OrdersApi Orders
+@inject StoreState Store
+@inject UiActions Ui
+
+<div class="ad-page">
+    <PageHeader Title="@L["Orders.Title"]" Icon="@Icons.Material.Rounded.ReceiptLong">
+        <MudButton Href="/admin/pedidos/quadro" Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Rounded.ViewKanban">@L["Nav.OrderBoard"]</MudButton>
+        <MudButton Href="/admin/pedidos/novo" Variant="Variant.Filled" Color="Color.Primary" DropShadow="false" StartIcon="@Icons.Material.Rounded.Add">@L["Nav.NewOrder"]</MudButton>
+    </PageHeader>
+
+    <section class="ad-card ad-filters">
+        <MudGrid Spacing="2">
+            <MudItem xs="12" md="4">
+                <MudTextField T="string" @bind-Value="_filter.Search" @bind-Value:after="SearchAsync" Label="@L["Orders.SearchLabel"]"
+                              Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Rounded.Search" Immediate="true" DebounceInterval="350" Clearable="true" />
+            </MudItem>
+            <MudItem xs="6" md="2">
+                <MudSelect T="OrderStatus?" Value="_filter.Status" ValueChanged="@(v => SetAsync(() => _filter.Status = v))"
+                           Label="@L["Orders.Status"]" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" ToStringFunc="@(s => L.Enum(s, string.Empty))">
+                    @foreach (var status in Enum.GetValues<OrderStatus>())
+                    {
+                        <MudSelectItem T="OrderStatus?" Value="@status">@L.Enum(status)</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="6" md="2">
+                <MudSelect T="PaymentStatus?" Value="_filter.PaymentStatus" ValueChanged="@(v => SetAsync(() => _filter.PaymentStatus = v))"
+                           Label="@L["Orders.Payment"]" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" ToStringFunc="@(s => L.Enum(s, string.Empty))">
+                    @foreach (var status in Enum.GetValues<PaymentStatus>())
+                    {
+                        <MudSelectItem T="PaymentStatus?" Value="@status">@L.Enum(status)</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="6" md="2">
+                <MudDatePicker Date="_filter.From" DateChanged="@(d => SetAsync(() => _filter.From = d))" Label="@L["Common.From"]"
+                               Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Culture="@Fmt.Culture" DateFormat="dd/MM/yyyy" />
+            </MudItem>
+            <MudItem xs="6" md="2">
+                <MudDatePicker Date="_filter.To" DateChanged="@(d => SetAsync(() => _filter.To = d))" Label="@L["Common.To"]"
+                               Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Culture="@Fmt.Culture" DateFormat="dd/MM/yyyy" />
+            </MudItem>
+        </MudGrid>
+    </section>
+
+    <section class="ad-card ad-card--flush">
+        <MudDataGrid T="OrderListItemDto" Items="@(_page?.Items ?? [])" Loading="_loading" Hover="true" Dense="true" Elevation="0"
+                     Class="ad-grid">
+            <Columns>
+                <TemplateColumn Title="@L["Orders.Number"]" Sortable="false">
+                    <CellTemplate>
+                        <a class="ad-link" href="@($"/admin/pedidos/{context.Item.Id}")">#@context.Item.Number</a>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="@L["Orders.PlacedAt"]" Sortable="false">
+                    <CellTemplate>@Fmt.DateAndTime(Store.ToLocal(context.Item.PlacedAt))</CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="@L["Orders.Customer"]" Sortable="false">
+                    <CellTemplate>
+                        <span class="ad-cell-main">@context.Item.CustomerName</span>
+                        @if (!string.IsNullOrWhiteSpace(context.Item.District))
+                        {
+                            <span class="ad-cell-sub">@context.Item.District · @context.Item.City</span>
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="@L["Orders.Status"]" Sortable="false">
+                    <CellTemplate><StatusChip Text="@L.Enum(context.Item.Status)" Color="@StatusStyles.For(context.Item.Status)" /></CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="@L["Orders.Payment"]" Sortable="false">
+                    <CellTemplate>
+                        <StatusChip Text="@L.Enum(context.Item.PaymentStatus)" Color="@StatusStyles.For(context.Item.PaymentStatus)" Variant="Variant.Outlined" />
+                        <span class="ad-cell-sub">@L.Enum(context.Item.PaymentTiming)</span>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="@L["Orders.Channel"]" Sortable="false">
+                    <CellTemplate>@L.Enum(context.Item.Channel)</CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="@L["Orders.Total"]" Sortable="false" HeaderClass="text-right" CellClass="text-right">
+                    <CellTemplate><strong>@Fmt.Money(context.Item.Total)</strong></CellTemplate>
+                </TemplateColumn>
+            </Columns>
+            <NoRecordsContent>
+                <EmptyState Icon="@Icons.Material.Rounded.SearchOff" Title="@L["Orders.NoneFound"]" Class="ad-empty--compact" />
+            </NoRecordsContent>
+        </MudDataGrid>
+        @if (_page is { TotalPages: > 1 })
+        {
+            <div class="ad-pager">
+                <MudPagination Count="_page.TotalPages" Selected="_filter.Page" SelectedChanged="@(p => SetAsync(() => _filter.Page = p, resetPage: false))" Color="Color.Primary" />
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    private readonly OrderQuery _filter = new() { PageSize = 25 };
+    private PagedResult<OrderListItemDto>? _page;
+    private bool _loading;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private Task SearchAsync()
+    {
+        _filter.Page = 1;
+        return LoadAsync();
+    }
+
+    private Task SetAsync(Action change, bool resetPage = true)
+    {
+        change();
+        if (resetPage)
+        {
+            _filter.Page = 1;
+        }
+
+        return LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _page = await Ui.LoadAsync(() => Orders.SearchAsync(_filter)) ?? PagedResult<OrderListItemDto>.Empty();
+        _loading = false;
+    }
+}

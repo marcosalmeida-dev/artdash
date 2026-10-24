@@ -1,0 +1,132 @@
+@page "/admin/rastreamento"
+@attribute [Authorize(Roles = AppRoles.Staff)]
+@implements IAsyncDisposable
+@inject DeliveriesApi Deliveries
+@inject StoreState Store
+@inject RealtimeClient Realtime
+@inject UiActions Ui
+
+@* Every vehicle on a run in progress, moving live as the drivers' phones report. *@
+<div class="ad-page ad-page--wide">
+    <PageHeader Title="@L["LiveMap.Title"]" Icon="@Icons.Material.Rounded.Map" Subtitle="@L["LiveMap.Subtitle"]">
+        <MudButton Variant="Variant.Text" StartIcon="@Icons.Material.Rounded.CenterFocusStrong" OnClick="FitAsync">@L["LiveMap.FitAll"]</MudButton>
+    </PageHeader>
+
+    <div class="ad-split ad-split--map">
+        <section class="ad-card ad-card--flush">
+            <LeafletMap @ref="_map" Markers="_markers" Height="calc(100vh - 230px)" AutoFit="false"
+                        CenterLatitude="@Store.Info.Address?.Latitude" CenterLongitude="@Store.Info.Address?.Longitude" Zoom="12" />
+        </section>
+
+        <aside class="ad-card ad-card--flush ad-scroll">
+            <h2 class="ad-card__title ad-card__title--pad">@L["LiveMap.OnTheRoad", _positions.Count]</h2>
+            @if (_positions.Count == 0)
+            {
+                <EmptyState Icon="@Icons.Material.Rounded.LocalShipping" Title="@L["LiveMap.Nobody"]" Text="@L["LiveMap.NobodyHint"]" Class="ad-empty--compact" />
+            }
+            else
+            {
+                <div class="ad-rows">
+                    @foreach (var position in _positions.Values.OrderBy(p => p.DeliveryNumber))
+                    {
+                        var stale = DateTime.UtcNow - position.RecordedAt > TimeSpan.FromMinutes(5);
+                        <div class="ad-row ad-row--select" @onclick="@(() => FocusAsync(position))">
+                            <span class="ad-row__icon"><MudIcon Icon="@StatusStyles.Icon(position.VehicleType)" /></span>
+                            <span class="ad-row__main">
+                                <strong>@position.DriverName</strong>
+                                <span class="ad-muted ad-small">@position.VehiclePlate · @position.DeliveryNumber</span>
+                                <span class="ad-small @(stale ? "ad-text-warning" : "ad-muted")">
+                                    @L["Deliveries.LastSeen", Fmt.Time(Store.ToLocal(position.RecordedAt))]
+                                    @(position.SpeedKmh is { } speed ? $" · {Math.Round(speed)} km/h" : "")
+                                </span>
+                            </span>
+                            <span @onclick:stopPropagation="true">
+                                <MudIconButton Href="@($"/admin/entregas/{position.DeliveryId}")" Icon="@Icons.Material.Rounded.OpenInNew"
+                                               Size="Size.Small" aria-label="@L["LiveMap.OpenRun"]" />
+                            </span>
+                        </div>
+                    }
+                </div>
+            }
+        </aside>
+    </div>
+</div>
+
+@code {
+    private readonly Dictionary<Guid, VehiclePositionDto> _positions = [];
+    private LeafletMap? _map;
+    private IReadOnlyList<MapMarker> _markers = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var positions = await Ui.LoadAsync(() => Deliveries.GetPositionsAsync()) ?? [];
+        foreach (var position in positions)
+        {
+            _positions[position.DeliveryId] = position;
+        }
+
+        BuildMarkers();
+        Realtime.PositionUpdated += OnPositionAsync;
+        Realtime.DeliveryChanged += OnDeliveryChangedAsync;
+        await Realtime.EnsureStartedAsync();
+    }
+
+    private void BuildMarkers()
+    {
+        var markers = _positions.Values.Select(Marker).ToList();
+        if (Store.Info.Address is { HasCoordinates: true } store)
+        {
+            markers.Add(new MapMarker("store", store.Latitude!.Value, store.Longitude!.Value, MapMarkerKinds.Store, null, Store.Info.Name));
+        }
+
+        _markers = markers;
+    }
+
+    private static MapMarker Marker(VehiclePositionDto position) =>
+        new(position.DeliveryId.ToString(), position.Latitude, position.Longitude, MapMarkerKinds.Vehicle,
+            position.VehiclePlate, $"{position.DriverName} · {position.DeliveryNumber}", position.Heading);
+
+    private Task OnPositionAsync(VehiclePositionDto position) => InvokeAsync(async () =>
+    {
+        var isNew = !_positions.ContainsKey(position.DeliveryId);
+        _positions[position.DeliveryId] = position;
+
+        if (isNew || _map is null)
+        {
+            BuildMarkers();
+        }
+        else
+        {
+            await _map.UpsertMarkerAsync(Marker(position));
+        }
+
+        StateHasChanged();
+    });
+
+    /// <summary>A finished or cancelled run leaves the map.</summary>
+    private Task OnDeliveryChangedAsync(DeliveryChangedMessage message) => InvokeAsync(() =>
+    {
+        if (message.Status is DeliveryStatus.Completed or DeliveryStatus.Cancelled && _positions.Remove(message.DeliveryId))
+        {
+            BuildMarkers();
+            StateHasChanged();
+        }
+    });
+
+    private async Task FocusAsync(VehiclePositionDto position)
+    {
+        if (_map is not null)
+        {
+            await _map.UpsertMarkerAsync(Marker(position), follow: true);
+        }
+    }
+
+    private Task FitAsync() => _map?.FitAsync() ?? Task.CompletedTask;
+
+    public ValueTask DisposeAsync()
+    {
+        Realtime.PositionUpdated -= OnPositionAsync;
+        Realtime.DeliveryChanged -= OnDeliveryChangedAsync;
+        return ValueTask.CompletedTask;
+    }
+}

@@ -1,0 +1,49 @@
+@* Avatar + name + role, opening the account menu. Shared by all shells. MudMenu only wires its default
+   activators, so the custom activator calls the menu context's ToggleAsync itself (artstore-fs note). *@
+<MudMenu AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" PopoverClass="ad-menu-popover">
+    <ActivatorContent Context="menu">
+        <div class="ad-user" @onclick="menu.ToggleAsync">
+            <MudAvatar Class="ad-avatar">@User.Initials()</MudAvatar>
+            <span class="ad-user__text">
+                <span class="ad-user__name">@User.DisplayName()</span>
+                <span class="ad-user__role">@L.Role(User.MainRole())</span>
+            </span>
+            <MudIcon Class="ad-user__caret" Icon="@Icons.Material.Rounded.ExpandMore" Size="Size.Small" />
+        </div>
+    </ActivatorContent>
+    <ChildContent>
+        <div class="ad-account-head">
+            <MudAvatar Class="ad-avatar">@User.Initials()</MudAvatar>
+            <div class="ad-account-head__text">
+                <span class="ad-account-head__name">@User.DisplayName()</span>
+                <span class="ad-account-head__meta">@User.FindFirst(ArtDashClaimTypes.Email)?.Value</span>
+            </div>
+        </div>
+        <MudDivider />
+        @if (User.IsStaff())
+        {
+            <MudMenuItem Href="@LandingRoutes.Admin" Icon="@Icons.Material.Rounded.SpaceDashboard">@L["Nav.Dashboard"]</MudMenuItem>
+            <MudMenuItem Href="/?preview=1" Icon="@Icons.Material.Rounded.Storefront">@L["Nav.ViewStore"]</MudMenuItem>
+        }
+        @if (User.IsDriver())
+        {
+            <MudMenuItem Href="@LandingRoutes.Driver" Icon="@Icons.Material.Rounded.LocalShipping">@L["Nav.MyDeliveries"]</MudMenuItem>
+        }
+        @if (User.IsCustomer())
+        {
+            <MudMenuItem Href="/meus-pedidos" Icon="@Icons.Material.Rounded.ShoppingBag">@L["Nav.MyOrders"]</MudMenuItem>
+            <MudMenuItem Href="/minha-conta" Icon="@Icons.Material.Rounded.Person">@L["Nav.MyAccount"]</MudMenuItem>
+        }
+        <MudMenuItem Href="/conta/senha" Icon="@Icons.Material.Rounded.Password">@L["Nav.ChangePassword"]</MudMenuItem>
+        <MudDivider />
+        <MudMenuItem Icon="@Icons.Material.Rounded.Logout" IconColor="Color.Error" OnClick="@(() => OnSignOut.InvokeAsync())">
+            @L["Nav.SignOut"]
+        </MudMenuItem>
+    </ChildContent>
+</MudMenu>
+
+@code {
+    [Parameter, EditorRequired] public ClaimsPrincipal User { get; set; } = default!;
+
+    [Parameter] public EventCallback OnSignOut { get; set; }
+}

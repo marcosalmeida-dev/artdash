@@ -1,0 +1,163 @@
+﻿@page "/meus-pedidos/{Id:guid}"
+@attribute [Authorize(Roles = AppRoles.Customer)]
+@implements IAsyncDisposable
+@inject MeApi Me
+@inject StoreState Store
+@inject RealtimeClient Realtime
+@inject IDialogService Dialogs
+@inject UiActions Ui
+
+<div class="ad-page ad-page--narrow">
+    @if (_order is null)
+    {
+        <PageHeader Title="@L["MyOrders.Title"]" BackHref="/meus-pedidos" />
+        <LoadingScreen />
+    }
+    else
+    {
+        <PageHeader Title="@L["MyOrders.OrderNumber", _order.Number]" BackHref="/meus-pedidos"
+                    Subtitle="@L["MyOrders.PlacedAt", Fmt.DateAndTime(Store.ToLocal(_order.PlacedAt))]">
+            <Metadata>
+                <div class="ad-chips">
+                    <StatusChip Text="@L.Enum(_order.Status)" Color="@StatusStyles.For(_order.Status)" Icon="@StatusStyles.Icon(_order.Status)" />
+                    <StatusChip Text="@L.Enum(_order.PaymentStatus)" Color="@StatusStyles.For(_order.PaymentStatus)" Variant="Variant.Outlined" />
+                </div>
+            </Metadata>
+            <ChildContent>
+                <MudButton Href="@($"/rastreio/{_order.TrackingCode}")" Variant="Variant.Outlined" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Rounded.Route">@L["MyOrders.Track"]</MudButton>
+            </ChildContent>
+        </PageHeader>
+
+        @if (IsNew)
+        {
+            <MudAlert Severity="Severity.Success" Variant="Variant.Filled" Class="mb-4" Icon="@Icons.Material.Rounded.Celebration">
+                @L["MyOrders.ThankYou"]
+            </MudAlert>
+        }
+
+        @if (CanPayOnline)
+        {
+            <MudAlert Severity="Severity.Warning" Class="mb-4">
+                <div class="d-flex align-center flex-wrap gap-3">
+                    <span>@L["MyOrders.AwaitingPayment"]</span>
+                    <MudButton Href="@($"/pedidos/{_order.Id}/pagamento")" Variant="Variant.Filled" Color="Color.Primary"
+                               DropShadow="false" StartIcon="@Icons.Material.Rounded.Payments">@L["MyOrders.PayNow"]</MudButton>
+                </div>
+            </MudAlert>
+        }
+
+        <div class="ad-stack">
+            <section class="ad-card">
+                <OrderProgress Status="_order.Status" />
+            </section>
+
+            <section class="ad-card">
+                <h2 class="ad-card__title">@L["Orders.Items"]</h2>
+                <OrderItemsSummary Order="_order" />
+            </section>
+
+            <div class="ad-grid-2">
+                <section class="ad-card">
+                    <h2 class="ad-card__title">@L["Checkout.DeliveryAddress"]</h2>
+                    <p class="ad-address-line">@_order.DeliveryAddress.ToSingleLine()</p>
+                    @if (!string.IsNullOrWhiteSpace(_order.Notes))
+                    {
+                        <p class="ad-muted"><strong>@L["Checkout.Notes"]:</strong> @_order.Notes</p>
+                    }
+                </section>
+                <section class="ad-card">
+                    <h2 class="ad-card__title">@L["Checkout.Payment"]</h2>
+                    <dl class="ad-kv">
+                        <div><dt>@L["Orders.PaymentTiming"]</dt><dd>@L.Enum(_order.PaymentTiming)</dd></div>
+                        @if (_order.PaymentMethod is { } method)
+                        {
+                            <div><dt>@L["Payments.Method"]</dt><dd>@L.Enum(method)</dd></div>
+                        }
+                        @if (_order.DueDate is { } due)
+                        {
+                            <div><dt>@L["Orders.DueDate"]</dt><dd>@Fmt.Date(due)</dd></div>
+                        }
+                        @if (_order.PaidAt is { } paid)
+                        {
+                            <div><dt>@L["Orders.PaidAt"]</dt><dd>@Fmt.DateAndTime(Store.ToLocal(paid))</dd></div>
+                        }
+                    </dl>
+                </section>
+            </div>
+
+            <section class="ad-card">
+                <h2 class="ad-card__title">@L["Tracking.History"]</h2>
+                <OrderTimeline History="_order.History" />
+            </section>
+
+            @if (CanCancel)
+            {
+                <div class="d-flex justify-center">
+                    <MudButton Variant="Variant.Text" Color="Color.Error" StartIcon="@Icons.Material.Rounded.Cancel" OnClick="CancelAsync">
+                        @L["MyOrders.Cancel"]
+                    </MudButton>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    [SupplyParameterFromQuery(Name = "novo")] public string? New { get; set; }
+
+    private OrderDto? _order;
+
+    private bool IsNew => New is not null && _order?.Status is OrderStatus.Pending or OrderStatus.Confirmed;
+
+    private bool CanPayOnline =>
+        _order is { PaymentTiming: PaymentTiming.Prepaid, Status: not OrderStatus.Cancelled } order &&
+        order.PaymentStatus != PaymentStatus.Paid &&
+        Store.Info.Payments.OnlinePaymentAvailable;
+
+    private bool CanCancel => _order is { Status: OrderStatus.Pending, AmountPaid: 0m };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+        if (_order is not null)
+        {
+            Realtime.OrderChanged += OnOrderChangedAsync;
+            await Realtime.TrackOrderAsync(_order.TrackingCode);
+        }
+    }
+
+    private async Task LoadAsync() => _order = await Ui.LoadAsync(() => Me.GetOrderAsync(Id)) ?? _order;
+
+    private Task OnOrderChangedAsync(OrderChangedMessage message) =>
+        message.OrderId != Id ? Task.CompletedTask : InvokeAsync(async () =>
+        {
+            await LoadAsync();
+            StateHasChanged();
+        });
+
+    private async Task CancelAsync()
+    {
+        if (!await Dialogs.ConfirmAsync(L["MyOrders.Cancel"], L["MyOrders.CancelConfirm"], L["MyOrders.CancelYes"],
+                L["Common.Back"], Color.Error, Icons.Material.Rounded.Cancel))
+        {
+            return;
+        }
+
+        if (await Ui.RunAsync(() => Me.CancelOrderAsync(Id), L["MyOrders.Cancelled"]))
+        {
+            await LoadAsync();
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Realtime.OrderChanged -= OnOrderChangedAsync;
+        if (_order is not null)
+        {
+            await Realtime.StopTrackingAsync(_order.TrackingCode);
+        }
+    }
+}

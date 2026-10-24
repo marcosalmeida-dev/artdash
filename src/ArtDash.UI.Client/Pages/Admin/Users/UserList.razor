@@ -1,0 +1,192 @@
+@page "/admin/usuarios"
+@attribute [Authorize(Roles = AppRoles.Admin)]
+@inject UsersApi Users
+@inject StoreState Store
+@inject AuthSession Session
+@inject IDialogService Dialogs
+@inject UiActions Ui
+
+@* Logins of the company: staff (admin, manager), drivers and customers. One role per user. *@
+<div class="ad-page">
+    <PageHeader Title="@L["Users.Title"]" Subtitle="@L["Users.Subtitle"]" Icon="@Icons.Material.Rounded.ManageAccounts">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" DropShadow="false" StartIcon="@Icons.Material.Rounded.PersonAdd"
+                   OnClick="@(() => EditAsync(null))">@L["Users.New"]</MudButton>
+    </PageHeader>
+
+    <section class="ad-card ad-filters">
+        <MudGrid Spacing="2">
+            <MudItem xs="12" md="6">
+                <MudTextField T="string" @bind-Value="_filter.Search" @bind-Value:after="SearchAsync" Label="@L["Users.Search"]"
+                              Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Rounded.Search" Immediate="true" DebounceInterval="350" Clearable="true" />
+            </MudItem>
+            <MudItem xs="6" md="3">
+                <MudSelect T="string" Value="_filter.Role" ValueChanged="@(v => SetAsync(() => _filter.Role = v))"
+                           Label="@L["Users.Role"]" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true"
+                           ToStringFunc="@(r => L.Role(r))">
+                    @foreach (var role in AppRoles.All)
+                    {
+                        <MudSelectItem T="string" Value="@role">@L.Role(role)</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="6" md="3">
+                <MudSelect T="bool?" Value="_filter.IsActive" ValueChanged="@(v => SetAsync(() => _filter.IsActive = v))"
+                           Label="@L["Common.Status"]" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true"
+                           ToStringFunc="ActiveLabel">
+                    <MudSelectItem T="bool?" Value="@((bool?)true)">@L["Common.Active"]</MudSelectItem>
+                    <MudSelectItem T="bool?" Value="@((bool?)false)">@L["Common.Inactive"]</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+        </MudGrid>
+    </section>
+
+    <section class="ad-card ad-card--flush">
+        <MudDataGrid T="UserListItemDto" Items="@(_page?.Items ?? [])" Loading="_loading" Hover="true" Dense="true" Elevation="0" Class="ad-grid">
+            <Columns>
+                <TemplateColumn Title="@L["Users.User"]" Sortable="false">
+                    <CellTemplate>
+                        <div class="ad-cell-media">
+                            <span class="ad-thumb ad-thumb--round"><MudIcon Icon="@RoleIcon(context.Item.Role)" Size="Size.Small" /></span>
+                            <span class="ad-cell-media__text">
+                                <span class="ad-cell-main">
+                                    @context.Item.FullName
+                                    @if (context.Item.Id == Session.User?.Id)
+                                    {
+                                        <span class="ad-muted"> (@L["Users.You"])</span>
+                                    }
+                                </span>
+                                <span class="ad-cell-sub">@context.Item.Email</span>
+                            </span>
+                        </div>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="@L["Users.Role"]" Sortable="false">
+                    <CellTemplate><StatusChip Text="@L.Role(context.Item.Role)" Color="@RoleColor(context.Item.Role)" Variant="Variant.Outlined" /></CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="@L["Users.Phone"]" Sortable="false">
+                    <CellTemplate>@Fmt.Phone(context.Item.Phone)</CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="@L["Users.LastLogin"]" Sortable="false">
+                    <CellTemplate>
+                        @(context.Item.LastLoginAt is { } last ? Fmt.DateAndTime(Store.ToLocal(last)) : L["Users.NeverSignedIn"])
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="@L["Common.Status"]" Sortable="false">
+                    <CellTemplate>
+                        <StatusChip Text="@(context.Item.IsActive ? L["Common.Active"] : L["Common.Inactive"])"
+                                    Color="@(context.Item.IsActive ? Color.Success : Color.Default)" />
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Sortable="false" HeaderClass="text-right" CellClass="text-right ad-cell-actions">
+                    <CellTemplate>
+                        <MudIconButton Icon="@Icons.Material.Rounded.Password" Size="Size.Small" aria-label="@L["Users.ResetPassword"]"
+                                       OnClick="@(() => ResetPasswordAsync(context.Item))" />
+                        <MudIconButton Icon="@Icons.Material.Rounded.Edit" Size="Size.Small" aria-label="@L["Common.Edit"]"
+                                       OnClick="@(() => EditAsync(context.Item.Id))" />
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+            <NoRecordsContent>
+                <EmptyState Icon="@Icons.Material.Rounded.PersonSearch" Title="@L["Users.None"]" Class="ad-empty--compact" />
+            </NoRecordsContent>
+        </MudDataGrid>
+        @if (_page is { TotalPages: > 1 })
+        {
+            <div class="ad-pager">
+                <MudPagination Count="_page.TotalPages" Selected="_filter.Page"
+                               SelectedChanged="@(p => SetAsync(() => _filter.Page = p, resetPage: false))" Color="Color.Primary" />
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    private readonly UserQuery _filter = new() { PageSize = 25 };
+    private PagedResult<UserListItemDto>? _page;
+    private bool _loading;
+
+    /// <summary>Pre-filter by role: <c>/admin/usuarios?perfil=Driver</c> (from the drivers page).</summary>
+    [SupplyParameterFromQuery(Name = "perfil")]
+    public string? RoleFromQuery { get; set; }
+
+    protected override Task OnInitializedAsync()
+    {
+        _filter.Role = AppRoles.All.FirstOrDefault(r => string.Equals(r, RoleFromQuery, StringComparison.OrdinalIgnoreCase));
+        return LoadAsync();
+    }
+
+    private string ActiveLabel(bool? active) => active switch
+    {
+        true => L["Common.Active"],
+        false => L["Common.Inactive"],
+        _ => string.Empty
+    };
+
+    private static string RoleIcon(string role) => role switch
+    {
+        AppRoles.Admin => Icons.Material.Rounded.AdminPanelSettings,
+        AppRoles.Manager => Icons.Material.Rounded.SupervisorAccount,
+        AppRoles.Driver => Icons.Material.Rounded.LocalShipping,
+        _ => Icons.Material.Rounded.Person
+    };
+
+    private static Color RoleColor(string role) => role switch
+    {
+        AppRoles.Admin => Color.Error,
+        AppRoles.Manager => Color.Secondary,
+        AppRoles.Driver => Color.Primary,
+        _ => Color.Default
+    };
+
+    private Task SearchAsync()
+    {
+        _filter.Page = 1;
+        return LoadAsync();
+    }
+
+    private Task SetAsync(Action change, bool resetPage = true)
+    {
+        change();
+        if (resetPage)
+        {
+            _filter.Page = 1;
+        }
+
+        return LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _page = await Ui.LoadAsync(() => Users.SearchAsync(_filter)) ?? PagedResult<UserListItemDto>.Empty();
+        _loading = false;
+    }
+
+    private async Task EditAsync(Guid? userId)
+    {
+        var parameters = new DialogParameters<UserDialog>
+        {
+            { x => x.UserId, userId },
+            { x => x.DefaultRole, _filter.Role }
+        };
+
+        var title = userId is null ? L["Users.New"] : L["Users.Edit"];
+        var dialog = await Dialogs.ShowAsync<UserDialog>(title, parameters, DialogServiceExtensions.Form(MaxWidth.Medium));
+        if (await dialog.Result is { Canceled: false })
+        {
+            await LoadAsync();
+        }
+    }
+
+    private async Task ResetPasswordAsync(UserListItemDto user)
+    {
+        var parameters = new DialogParameters<ResetPasswordDialog>
+        {
+            { x => x.UserId, user.Id },
+            { x => x.UserName, user.FullName }
+        };
+
+        await Dialogs.ShowAsync<ResetPasswordDialog>(L["Users.ResetPassword"], parameters, DialogServiceExtensions.Form(MaxWidth.ExtraSmall));
+    }
+}

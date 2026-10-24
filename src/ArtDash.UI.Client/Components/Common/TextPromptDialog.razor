@@ -1,0 +1,30 @@
+@* Asks for one short text (a cancellation reason, a note). Closes with Ok(text). *@
+<MudDialog Class="ad-dialog">
+    <DialogContent>
+        <MudTextField T="string" @bind-Value="_text" Label="@Label" HelperText="@HelperText"
+                      Variant="Variant.Outlined" Lines="3" MaxLength="500" Counter="500"
+                      Immediate="true" AutoFocus="true" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="Cancel">@CancelText</MudButton>
+        <MudButton Variant="Variant.Filled" Color="@Color" DropShadow="false" OnClick="Confirm"
+                   Disabled="@(Required && string.IsNullOrWhiteSpace(_text))">@ConfirmText</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance? MudDialog { get; set; }
+
+    [Parameter] public string Label { get; set; } = string.Empty;
+    [Parameter] public string? HelperText { get; set; }
+    [Parameter] public string ConfirmText { get; set; } = "OK";
+    [Parameter] public string CancelText { get; set; } = "Cancelar";
+    [Parameter] public bool Required { get; set; } = true;
+    [Parameter] public Color Color { get; set; } = Color.Primary;
+
+    private string? _text;
+
+    private void Confirm() => MudDialog?.Close(DialogResult.Ok(_text?.Trim() ?? string.Empty));
+
+    private void Cancel() => MudDialog?.Cancel();
+}

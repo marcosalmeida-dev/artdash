@@ -1,0 +1,263 @@
+@page "/admin/pedidos/novo"
+@attribute [Authorize(Roles = AppRoles.Staff)]
+@inject OrdersApi Orders
+@inject CustomersApi Customers
+@inject CatalogApi Catalog
+@inject StoreState Store
+@inject UiActions Ui
+@inject NavigationManager Navigation
+
+@* Back-office order (phone, WhatsApp, sales rep). Prices come from the catalog on the server; the fee
+   and a discount can be set here. Post-paid orders entered by staff are confirmed right away. *@
+<div class="ad-page">
+    <PageHeader Title="@L["NewOrder.Title"]" Icon="@Icons.Material.Rounded.AddShoppingCart" BackHref="/admin/pedidos" />
+
+    <div class="ad-split ad-split--wide">
+        <div class="ad-stack">
+            <section class="ad-card">
+                <h2 class="ad-card__title"><MudIcon Icon="@Icons.Material.Rounded.Person" Size="Size.Small" /> @L["NewOrder.Customer"]</h2>
+                <MudAutocomplete T="LookupDto" Value="_customerLookup" ValueChanged="OnCustomerSelectedAsync" SearchFunc="SearchCustomersAsync"
+                                 ToStringFunc="@(c => c?.Name)" Label="@L["NewOrder.SearchCustomer"]" Variant="Variant.Outlined"
+                                 Margin="Margin.Dense" DebounceInterval="300" ResetValueOnEmptyText="true" Clearable="true"
+                                 AdornmentIcon="@Icons.Material.Rounded.Search">
+                    <ItemTemplate Context="item">
+                        <div class="ad-cell-main">@item.Name</div>
+                        @if (!string.IsNullOrWhiteSpace(item.Description))
+                        {
+                            <div class="ad-cell-sub">@item.Description</div>
+                        }
+                    </ItemTemplate>
+                </MudAutocomplete>
+                @if (_customer is not null)
+                {
+                    <div class="ad-chips mt-2">
+                        @if (_customer.AllowInvoicing)
+                        {
+                            <StatusChip Text="@L["NewOrder.InvoicingAllowed", _customer.PaymentTermDays]" Color="Color.Info" Icon="@Icons.Material.Rounded.RequestQuote" />
+                        }
+                        @if (_customer.OpenBalance > 0)
+                        {
+                            <StatusChip Text="@L["NewOrder.OpenBalance", Fmt.Money(_customer.OpenBalance)]" Color="Color.Warning" />
+                        }
+                    </div>
+                }
+            </section>
+
+            <section class="ad-card">
+                <h2 class="ad-card__title"><MudIcon Icon="@Icons.Material.Rounded.Inventory2" Size="Size.Small" /> @L["NewOrder.Items"]</h2>
+                <div class="ad-inline-form">
+                    <MudAutocomplete T="ProductDto" @bind-Value="_product" SearchFunc="SearchProductsAsync" ToStringFunc="@(p => p?.Name)"
+                                     Label="@L["NewOrder.SearchProduct"]" Variant="Variant.Outlined" Margin="Margin.Dense"
+                                     DebounceInterval="250" Clearable="true" Class="ad-inline-form__grow">
+                        <ItemTemplate Context="item">
+                            <div class="d-flex justify-space-between gap-3">
+                                <span>@item.Name</span>
+                                <span class="ad-muted">@Fmt.Money(item.Price) / @L.Enum(item.Unit)</span>
+                            </div>
+                        </ItemTemplate>
+                    </MudAutocomplete>
+                    <MudNumericField T="decimal" @bind-Value="_quantity" Label="@L["Orders.Quantity"]" Variant="Variant.Outlined"
+                                     Margin="Margin.Dense" Min="0.001m" Step="1m" Class="ad-inline-form__qty" />
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" DropShadow="false" Disabled="@(_product is null || _quantity <= 0)"
+                               StartIcon="@Icons.Material.Rounded.Add" OnClick="AddItem">@L["Common.Add"]</MudButton>
+                </div>
+
+                @if (_lines.Count == 0)
+                {
+                    <p class="ad-muted mt-3">@L["NewOrder.NoItems"]</p>
+                }
+                else
+                {
+                    <table class="ad-items mt-3">
+                        <tbody>
+                            @foreach (var line in _lines)
+                            {
+                                <tr>
+                                    <td><span class="ad-items__name">@line.Product.Name</span><span class="ad-items__sku">@Fmt.Money(line.Product.Price) / @L.Enum(line.Product.Unit)</span></td>
+                                    <td class="text-right" style="width:120px">
+                                        <MudNumericField T="decimal" @bind-Value="line.Quantity" Variant="Variant.Text" Margin="Margin.Dense" Min="0.001m" HideSpinButtons="true" />
+                                    </td>
+                                    <td class="text-right">@Fmt.Money(line.Product.Price * line.Quantity)</td>
+                                    <td class="text-right" style="width:48px">
+                                        <MudIconButton Icon="@Icons.Material.Rounded.DeleteOutline" Size="Size.Small" Color="Color.Error"
+                                                       aria-label="@L["Common.Remove"]" OnClick="@(() => _lines.Remove(line))" />
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </section>
+
+            <section class="ad-card">
+                <h2 class="ad-card__title"><MudIcon Icon="@Icons.Material.Rounded.LocationOn" Size="Size.Small" /> @L["Checkout.DeliveryAddress"]</h2>
+                <AddressEditor Address="_request.DeliveryAddress" />
+            </section>
+        </div>
+
+        <aside class="ad-stack">
+            <section class="ad-card">
+                <h2 class="ad-card__title">@L["Checkout.Payment"]</h2>
+                <MudSelect T="PaymentTiming" Value="_request.PaymentTiming" ValueChanged="OnTimingChanged" Label="@L["Orders.PaymentTiming"]"
+                           Variant="Variant.Outlined" Margin="Margin.Dense" ToStringFunc="@(t => L.Enum(t))">
+                    @foreach (var timing in Enum.GetValues<PaymentTiming>())
+                    {
+                        <MudSelectItem T="PaymentTiming" Value="@timing" Disabled="@(timing == PaymentTiming.Invoiced && _customer?.AllowInvoicing != true)">
+                            @L.Enum(timing)
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+                <MudSelect T="PaymentMethod?" @bind-Value="_request.PaymentMethod" Label="@L["Payments.Method"]" Variant="Variant.Outlined"
+                           Margin="Margin.Dense" Clearable="true" Class="mt-3" ToStringFunc="@(m => L.Enum(m, string.Empty))">
+                    @foreach (var method in Enum.GetValues<PaymentMethod>())
+                    {
+                        <MudSelectItem T="PaymentMethod?" Value="@method">@L.Enum(method)</MudSelectItem>
+                    }
+                </MudSelect>
+                <p class="ad-muted ad-small mt-2">@L[$"NewOrder.TimingHint.{_request.PaymentTiming}"]</p>
+            </section>
+
+            <section class="ad-card ad-summary">
+                <h2 class="ad-card__title">@L["Cart.Summary"]</h2>
+                <MudGrid Spacing="2">
+                    <MudItem xs="6">
+                        <MudNumericField T="decimal?" @bind-Value="_request.DeliveryFeeOverride" Label="@L["NewOrder.Fee"]" Variant="Variant.Outlined"
+                                         Margin="Margin.Dense" Min="0m" Format="N2" Culture="@Fmt.Culture" Placeholder="@Fmt.Money(DefaultFee)" />
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudNumericField T="decimal?" @bind-Value="_request.Discount" Label="@L["Orders.Discount"]" Variant="Variant.Outlined"
+                                         Margin="Margin.Dense" Min="0m" Format="N2" Culture="@Fmt.Culture" />
+                    </MudItem>
+                </MudGrid>
+                <dl class="ad-totals mt-3">
+                    <div><dt>@L["Orders.Subtotal"]</dt><dd>@Fmt.Money(Subtotal)</dd></div>
+                    <div><dt>@L["Orders.DeliveryFee"]</dt><dd>@Fmt.Money(Fee)</dd></div>
+                    @if (_request.Discount is > 0)
+                    {
+                        <div><dt>@L["Orders.Discount"]</dt><dd>- @Fmt.Money(_request.Discount.Value)</dd></div>
+                    }
+                    <div class="ad-totals__grand"><dt>@L["Orders.Total"]</dt><dd>@Fmt.Money(Total)</dd></div>
+                </dl>
+                <MudTextField T="string" @bind-Value="_request.Notes" Label="@L["Checkout.Notes"]" Variant="Variant.Outlined"
+                              Lines="2" MaxLength="1000" Class="mt-3" />
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" DropShadow="false" FullWidth="true" Size="Size.Large" Class="mt-3"
+                           Disabled="@(!CanPlace)" OnClick="PlaceAsync" StartIcon="@Icons.Material.Rounded.CheckCircle">@L["NewOrder.Place"]</MudButton>
+            </section>
+        </aside>
+    </div>
+</div>
+
+@code {
+    private sealed class Line(ProductDto product, decimal quantity)
+    {
+        public ProductDto Product { get; } = product;
+        public decimal Quantity { get; set; } = quantity;
+    }
+
+    private readonly PlaceOrderRequest _request = new() { PaymentTiming = PaymentTiming.OnDelivery, PaymentMethod = PaymentMethod.Pix };
+    private readonly List<Line> _lines = [];
+    private LookupDto? _customerLookup;
+    private CustomerDto? _customer;
+    private ProductDto? _product;
+    private decimal _quantity = 1;
+    private bool _placing;
+
+    private decimal Subtotal => _lines.Sum(l => l.Product.Price * l.Quantity);
+    private decimal DefaultFee => Store.DeliveryFeeFor(Subtotal);
+    private decimal Fee => _request.DeliveryFeeOverride ?? DefaultFee;
+    private decimal Total => Math.Max(0, Subtotal + Fee - (_request.Discount ?? 0));
+
+    private bool CanPlace => !_placing && _customer is not null && _lines.Count > 0 && _lines.All(l => l.Quantity > 0);
+
+    /// <summary>Opened from the customers list: <c>/admin/pedidos/novo?cliente={id}</c>.</summary>
+    [SupplyParameterFromQuery(Name = "cliente")]
+    public Guid? CustomerFromQuery { get; set; }
+
+    protected override Task OnInitializedAsync() =>
+        CustomerFromQuery is { } customerId
+            ? OnCustomerSelectedAsync(new LookupDto(customerId, string.Empty))
+            : Task.CompletedTask;
+
+    private async Task<IEnumerable<LookupDto>> SearchCustomersAsync(string? term, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await Customers.LookupAsync(term, cancellationToken);
+        }
+        catch (ApiException)
+        {
+            return [];
+        }
+    }
+
+    private async Task<IEnumerable<ProductDto>> SearchProductsAsync(string? term, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await Catalog.LookupProductsAsync(term, cancellationToken);
+        }
+        catch (ApiException)
+        {
+            return [];
+        }
+    }
+
+    private async Task OnCustomerSelectedAsync(LookupDto? lookup)
+    {
+        _customer = lookup is null ? null : await Ui.LoadAsync(() => Customers.GetAsync(lookup.Id));
+        _customerLookup = _customer is null ? null : new LookupDto(_customer.Id, _customer.Name, lookup?.Description);
+        _request.CustomerId = _customer?.Id;
+
+        if (_customer is not null)
+        {
+            _request.DeliveryAddress = _customer.Address.Clone();
+            if (_customer.AllowInvoicing)
+            {
+                _request.PaymentTiming = PaymentTiming.Invoiced;
+            }
+        }
+
+        if (_customer?.AllowInvoicing != true && _request.PaymentTiming == PaymentTiming.Invoiced)
+        {
+            _request.PaymentTiming = PaymentTiming.OnDelivery;
+        }
+    }
+
+    private void OnTimingChanged(PaymentTiming timing) => _request.PaymentTiming = timing;
+
+    private void AddItem()
+    {
+        if (_product is null || _quantity <= 0)
+        {
+            return;
+        }
+
+        var existing = _lines.FirstOrDefault(l => l.Product.Id == _product.Id);
+        if (existing is null)
+        {
+            _lines.Add(new Line(_product, _quantity));
+        }
+        else
+        {
+            existing.Quantity += _quantity;
+        }
+
+        _product = null;
+        _quantity = 1;
+    }
+
+    private async Task PlaceAsync()
+    {
+        _placing = true;
+        _request.Items = _lines.Select(l => new OrderItemRequest { ProductId = l.Product.Id, Quantity = l.Quantity }).ToList();
+
+        PlaceOrderResultDto? result = null;
+        if (await Ui.RunAsync(async () => result = await Orders.PlaceAsync(_request), L["NewOrder.Placed"]) && result is not null)
+        {
+            Navigation.NavigateTo($"/admin/pedidos/{result.OrderId}");
+            return;
+        }
+
+        _placing = false;
+    }
+}

@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Use cases (commands/queries), validators, ports (interfaces implemented by Infrastructure)
+    and the in-house mediator. Depends on EF Core only for DbSet/IQueryable.
+  -->
+  <PropertyGroup>
+    <RootNamespace>ArtDash.Application</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ArtDash.Domain\ArtDash.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ArtDash.Application.Tests" />
+    <InternalsVisibleTo Include="ArtDash.Infrastructure.Tests" />
+  </ItemGroup>
+
+</Project>

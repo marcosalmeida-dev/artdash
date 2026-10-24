@@ -1,0 +1,171 @@
+@inject UsersApi Users
+@inject AuthSession Session
+@inject UiActions Ui
+
+@* Create / edit a login. Driver adds the CNH fields (kept on the driver record); Customer links a customer record. *@
+<MudDialog Class="ad-dialog">
+    <DialogContent>
+        @if (_request is null)
+        {
+            <LoadingScreen Inline="true" />
+        }
+        else
+        {
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="6">
+                    <MudTextField T="string" @bind-Value="_request.FullName" Label="@L["Users.FullName"]" Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" Required="true" RequiredError="@L["Validation.Required"]" MaxLength="150"
+                                  AutoFocus="@(UserId is null)" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField T="string" @bind-Value="_request.Email" Label="@L["Users.Email"]" HelperText="@L["Users.EmailHint"]"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense" InputType="InputType.Email" Required="true"
+                                  RequiredError="@L["Validation.Required"]" MaxLength="150" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField T="string" @bind-Value="_request.Phone" Label="@L["Users.Phone"]" Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" InputType="InputType.Telephone" MaxLength="20" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="string" @bind-Value="_request.Role" Label="@L["Users.Role"]" Variant="Variant.Outlined"
+                               Margin="Margin.Dense" Disabled="IsSelf" ToStringFunc="@(r => L.Role(r))"
+                               HelperText="@(IsSelf ? L["Users.SelfHint"].Value : L[$"Users.RoleHint.{_request.Role}"].Value)">
+                        @foreach (var role in AppRoles.All)
+                        {
+                            <MudSelectItem T="string" Value="@role">@L.Role(role)</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                @if (UserId is null)
+                {
+                    <MudItem xs="12" sm="6">
+                        <MudTextField T="string" @bind-Value="_request.Password" Label="@L["Users.Password"]" HelperText="@L["Register.PasswordHint"]"
+                                      Variant="Variant.Outlined" Margin="Margin.Dense" Required="true" RequiredError="@L["Validation.Required"]"
+                                      InputType="@(_showPassword ? InputType.Text : InputType.Password)" MaxLength="100"
+                                      Adornment="Adornment.End" AdornmentIcon="@(_showPassword ? Icons.Material.Rounded.VisibilityOff : Icons.Material.Rounded.Visibility)"
+                                      OnAdornmentClick="@(() => _showPassword = !_showPassword)" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6" Class="d-flex align-center">
+                        <MudButton Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Rounded.Casino" OnClick="GeneratePassword">
+                            @L["Users.GeneratePassword"]
+                        </MudButton>
+                    </MudItem>
+                }
+
+                @if (_request.Role == AppRoles.Driver)
+                {
+                    <MudItem xs="12">
+                        <h3 class="ad-section-title">@L["Users.DriverLicense"]</h3>
+                    </MudItem>
+                    <MudItem xs="12" sm="5">
+                        <MudTextField T="string" @bind-Value="_request.LicenseNumber" Label="@L["Users.LicenseNumber"]" Variant="Variant.Outlined"
+                                      Margin="Margin.Dense" MaxLength="20" />
+                    </MudItem>
+                    <MudItem xs="6" sm="3">
+                        <MudSelect T="string" @bind-Value="_request.LicenseCategory" Label="@L["Users.LicenseCategory"]" Variant="Variant.Outlined"
+                                   Margin="Margin.Dense" Clearable="true">
+                            @foreach (var category in LicenseCategories)
+                            {
+                                <MudSelectItem T="string" Value="@category">@category</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="6" sm="4">
+                        <MudDatePicker @bind-Date="_request.LicenseExpiresOn" Label="@L["Users.LicenseExpiresOn"]" Variant="Variant.Outlined"
+                                       Margin="Margin.Dense" Culture="@Fmt.Culture" DateFormat="dd/MM/yyyy" Clearable="true" />
+                    </MudItem>
+                }
+
+                <MudItem xs="12">
+                    <MudSwitch T="bool" @bind-Value="_request.IsActive" Color="Color.Primary" Disabled="IsSelf"
+                               Label="@(_request.IsActive ? L["Users.ActiveLabel"] : L["Users.InactiveLabel"])" />
+                </MudItem>
+            </MudGrid>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="@(() => MudDialog!.Cancel())">@L["Common.Cancel"]</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" DropShadow="false" Disabled="@(_saving || _request is null)"
+                   OnClick="SaveAsync" StartIcon="@Icons.Material.Rounded.Save">@L["Common.Save"]</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    /// <summary>Brazilian driving licence (CNH) categories.</summary>
+    private static readonly string[] LicenseCategories = ["A", "B", "C", "D", "E", "AB", "AC", "AD", "AE"];
+
+    [CascadingParameter] private IMudDialogInstance? MudDialog { get; set; }
+
+    /// <summary>The user to edit; null creates a new one.</summary>
+    [Parameter] public Guid? UserId { get; set; }
+
+    /// <summary>Role preselected for a new user (the list's role filter).</summary>
+    [Parameter] public string? DefaultRole { get; set; }
+
+    private SaveUserRequest? _request;
+    private bool _showPassword;
+    private bool _saving;
+
+    private bool IsSelf => UserId is not null && UserId == Session.User?.Id;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (UserId is not { } id)
+        {
+            _request = new SaveUserRequest
+            {
+                Role = DefaultRole is { Length: > 0 } role && AppRoles.All.Contains(role) ? role : AppRoles.Manager
+            };
+            return;
+        }
+
+        var user = await Ui.LoadAsync(() => Users.GetAsync(id));
+        if (user is null)
+        {
+            MudDialog?.Cancel();
+            return;
+        }
+
+        _request = SaveUserRequest.From(user);
+    }
+
+    private void GeneratePassword()
+    {
+        if (_request is null)
+        {
+            return;
+        }
+
+        _request.Password = PasswordGenerator.New();
+        _showPassword = true;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_request is null)
+        {
+            return;
+        }
+
+        _saving = true;
+        var request = _request;
+        if (request.Role != AppRoles.Driver)
+        {
+            request.LicenseNumber = null;
+            request.LicenseCategory = null;
+            request.LicenseExpiresOn = null;
+        }
+
+        var saved = UserId is { } id
+            ? await Ui.RunAsync(() => Users.UpdateAsync(id, request), L["Common.Saved"])
+            : await Ui.RunAsync(() => Users.CreateAsync(request), L["Users.Created"]);
+
+        if (saved)
+        {
+            MudDialog?.Close(DialogResult.Ok(true));
+        }
+
+        _saving = false;
+    }
+}

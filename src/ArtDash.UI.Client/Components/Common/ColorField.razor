@@ -1,0 +1,62 @@
+@* A brand color: the browser's color picker plus a "#RRGGBB" text field, kept in sync. Raises
+   ValueChanged only with valid colors, so a half-typed value never reaches the live preview. *@
+<div class="ad-color-field">
+    <label class="ad-color-field__swatch" style="background:@Swatch">
+        <input type="color" value="@Swatch.ToLowerInvariant()" @oninput="OnPickedAsync" aria-label="@Label" />
+    </label>
+    <div class="ad-color-field__text">
+        <MudTextField T="string" Value="@_text" ValueChanged="OnTypedAsync" Label="@Label" HelperText="@HelperText"
+                      Variant="Variant.Outlined" Margin="Margin.Dense" MaxLength="7" Immediate="true"
+                      Error="_invalid" ErrorText="@L["Branding.InvalidColor"]" />
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Value { get; set; } = "#000000";
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public string Label { get; set; } = string.Empty;
+    [Parameter] public string? HelperText { get; set; }
+
+    private string _text = string.Empty;
+    private bool _invalid;
+
+    private string Swatch => ColorMath.Normalize(Value, "#000000");
+
+    protected override void OnParametersSet()
+    {
+        // Follow outside changes (a preset, "discard") unless the user is mid-way through typing.
+        if (!_invalid)
+        {
+            _text = Swatch;
+        }
+    }
+
+    private Task OnPickedAsync(ChangeEventArgs e)
+    {
+        _invalid = false;
+        return SetAsync(e.Value?.ToString());
+    }
+
+    private Task OnTypedAsync(string? text)
+    {
+        _text = (text ?? string.Empty).Trim();
+        if (_text.Length > 0 && _text[0] != '#')
+        {
+            _text = "#" + _text;
+        }
+
+        _invalid = !ColorMath.IsValidHex(_text);
+        return _invalid ? Task.CompletedTask : SetAsync(_text);
+    }
+
+    private async Task SetAsync(string? color)
+    {
+        var normalized = ColorMath.Normalize(color, Swatch);
+        _text = normalized;
+        if (!string.Equals(normalized, Value, StringComparison.OrdinalIgnoreCase))
+        {
+            Value = normalized;
+            await ValueChanged.InvokeAsync(normalized);
+        }
+    }
+}

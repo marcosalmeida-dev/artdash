@@ -1,0 +1,102 @@
+@inject UiActions Ui
+
+@* Shows an image URL with "send image" / "remove" actions. The upload itself is the caller's (Upload). *@
+<div class="ad-image-field @(Square ? "ad-image-field--square" : null)">
+    <div class="ad-image-field__preview @(DarkBackground ? "ad-image-field__preview--dark" : null)">
+        @if (!string.IsNullOrWhiteSpace(Url))
+        {
+            <img src="@Url" alt="@Label" />
+        }
+        else
+        {
+            <MudIcon Icon="@Icons.Material.Rounded.Image" />
+        }
+    </div>
+    <div class="ad-image-field__side">
+        <span class="ad-image-field__label">@Label</span>
+        @if (!string.IsNullOrWhiteSpace(HelperText))
+        {
+            <span class="ad-image-field__help">@HelperText</span>
+        }
+        <div class="ad-image-field__actions">
+            <MudFileUpload T="IBrowserFile" FilesChanged="OnFileSelectedAsync" Accept=".png,.jpg,.jpeg,.webp,.svg">
+                <CustomContent Context="upload">
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary" Disabled="_uploading"
+                               StartIcon="@Icons.Material.Rounded.Upload" OnClick="@upload.OpenFilePickerAsync">
+                        @(_uploading ? L["Upload.Sending"] : L["Upload.Choose"])
+                    </MudButton>
+                </CustomContent>
+            </MudFileUpload>
+            @if (!string.IsNullOrWhiteSpace(Url))
+            {
+                <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Error"
+                           StartIcon="@Icons.Material.Rounded.Delete" OnClick="RemoveAsync" Disabled="_uploading">
+                    @L["Common.Remove"]
+                </MudButton>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    /// <summary>2 MB — the API's limit (UploadRules.MaxImageBytes).</summary>
+    private const long MaxBytes = 2 * 1024 * 1024;
+
+    [Parameter] public string? Url { get; set; }
+    [Parameter] public EventCallback<string?> UrlChanged { get; set; }
+
+    /// <summary>Sends the file and returns its URL: (content, fileName, contentType).</summary>
+    [Parameter, EditorRequired] public Func<Stream, string, string, Task<UploadResultDto>> Upload { get; set; } = default!;
+
+    [Parameter] public string Label { get; set; } = string.Empty;
+    [Parameter] public string? HelperText { get; set; }
+    [Parameter] public bool Square { get; set; }
+    [Parameter] public bool DarkBackground { get; set; }
+
+    private bool _uploading;
+
+    private async Task OnFileSelectedAsync(IBrowserFile? file)
+    {
+        if (file is null)
+        {
+            return;
+        }
+
+        if (file.Size > MaxBytes)
+        {
+            Ui.Warning(L["Upload.TooLarge"]);
+            return;
+        }
+
+        _uploading = true;
+        try
+        {
+            // Buffered: the browser stream only lives as long as this call, the HTTP upload needs it whole.
+            using var buffer = new MemoryStream();
+            await using (var stream = file.OpenReadStream(MaxBytes))
+            {
+                await stream.CopyToAsync(buffer);
+            }
+
+            buffer.Position = 0;
+            var contentType = string.IsNullOrWhiteSpace(file.ContentType) ? "image/png" : file.ContentType;
+
+            UploadResultDto? result = null;
+            if (await Ui.RunAsync(async () => result = await Upload(buffer, file.Name, contentType)) && result is not null)
+            {
+                Url = result.Url;
+                await UrlChanged.InvokeAsync(Url);
+            }
+        }
+        finally
+        {
+            _uploading = false;
+        }
+    }
+
+    private async Task RemoveAsync()
+    {
+        Url = null;
+        await UrlChanged.InvokeAsync(null);
+    }
+}

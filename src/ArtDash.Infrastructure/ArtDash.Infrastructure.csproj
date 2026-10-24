@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Adapters: EF Core (SQL Server), ASP.NET Core Identity + JWT, multi-tenancy resolution,
+    Mercado Pago gateway, file storage, Data Protection.
+  -->
+  <PropertyGroup>
+    <RootNamespace>ArtDash.Infrastructure</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
+    <!-- Microsoft.Data.SqlClient brings 9.0.11, which has known vulnerabilities (NU1902/NU1903); same fix as artstore-fs. -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ArtDash.Application\ArtDash.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ArtDash.Application.Tests" />
+  </ItemGroup>
+
+</Project>

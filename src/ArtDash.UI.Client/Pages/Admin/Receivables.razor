@@ -1,0 +1,149 @@
+@page "/admin/recebiveis"
+@attribute [Authorize(Roles = AppRoles.Staff)]
+@inject OrdersApi Orders
+@inject StoreState Store
+@inject IDialogService Dialogs
+@inject UiActions Ui
+
+@* Accounts receivable: invoiced ("faturado") orders, by due date. *@
+<div class="ad-page">
+    <PageHeader Title="@L["Receivables.Title"]" Icon="@Icons.Material.Rounded.RequestQuote" Subtitle="@L["Receivables.Subtitle"]" />
+
+    @if (_data is not null)
+    {
+        <div class="ad-stats ad-stats--3">
+            <StatCard Label="@L["Receivables.TotalOpen"]" Value="@Fmt.Money(_data.TotalOpen)" Icon="@Icons.Material.Rounded.AccountBalanceWallet" />
+            <StatCard Label="@L["Receivables.TotalOverdue"]" Value="@Fmt.Money(_data.TotalOverdue)" Icon="@Icons.Material.Rounded.Warning" Color="Color.Error" />
+            <StatCard Label="@L["Receivables.OverdueCount"]" Value="@_data.OverdueCount.ToString()" Icon="@Icons.Material.Rounded.EventBusy" Color="Color.Warning" />
+        </div>
+    }
+
+    <section class="ad-card ad-filters mt-4">
+        <MudGrid Spacing="2">
+            <MudItem xs="12" md="5">
+                <MudToggleGroup T="ReceivableFilter" Value="_filter.Filter" ValueChanged="@(v => SetAsync(() => _filter.Filter = v))"
+                                Color="Color.Primary" Size="Size.Small" Class="ad-toggle">
+                    @foreach (var option in Enum.GetValues<ReceivableFilter>())
+                    {
+                        <MudToggleItem Value="@option" Text="@L.Enum(option)" />
+                    }
+                </MudToggleGroup>
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudTextField T="string" @bind-Value="_filter.Search" @bind-Value:after="@(() => SetAsync(() => { }))" Label="@L["Receivables.Search"]"
+                              Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Rounded.Search"
+                              Immediate="true" DebounceInterval="350" Clearable="true" />
+            </MudItem>
+            <MudItem xs="6" md="2">
+                <MudDatePicker Date="_filter.DueFrom" DateChanged="@(d => SetAsync(() => _filter.DueFrom = d))" Label="@L["Receivables.DueFrom"]"
+                               Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Culture="@Fmt.Culture" DateFormat="dd/MM/yyyy" />
+            </MudItem>
+            <MudItem xs="6" md="2">
+                <MudDatePicker Date="_filter.DueTo" DateChanged="@(d => SetAsync(() => _filter.DueTo = d))" Label="@L["Receivables.DueTo"]"
+                               Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" Culture="@Fmt.Culture" DateFormat="dd/MM/yyyy" />
+            </MudItem>
+        </MudGrid>
+    </section>
+
+    <section class="ad-card ad-card--flush">
+        <MudDataGrid T="ReceivableDto" Items="@(_data?.Page.Items ?? [])" Loading="_loading" Hover="true" Dense="true" Elevation="0" Class="ad-grid">
+            <Columns>
+                <TemplateColumn Title="@L["Orders.Number"]" Sortable="false">
+                    <CellTemplate><a class="ad-link" href="@($"/admin/pedidos/{context.Item.OrderId}")">#@context.Item.Number</a></CellTemplate>
+                </TemplateColumn>
+                <PropertyColumn Property="x => x.CustomerName" Title="@L["Orders.Customer"]" Sortable="false" />
+                <TemplateColumn Title="@L["Orders.PlacedAt"]" Sortable="false">
+                    <CellTemplate>@Fmt.Date(Store.ToLocal(context.Item.PlacedAt))</CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="@L["Orders.DueDate"]" Sortable="false">
+                    <CellTemplate>
+                        @Fmt.Date(context.Item.DueDate)
+                        @if (context.Item.IsOverdue)
+                        {
+                            <StatusChip Text="@L["Receivables.DaysOverdue", context.Item.DaysOverdue]" Color="Color.Error" />
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="@L["Orders.Total"]" Sortable="false" HeaderClass="text-right" CellClass="text-right">
+                    <CellTemplate>@Fmt.Money(context.Item.Total)</CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="@L["Orders.Outstanding"]" Sortable="false" HeaderClass="text-right" CellClass="text-right">
+                    <CellTemplate><strong>@Fmt.Money(context.Item.Outstanding)</strong></CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="@L["Orders.Payment"]" Sortable="false">
+                    <CellTemplate><StatusChip Text="@L.Enum(context.Item.PaymentStatus)" Color="@StatusStyles.For(context.Item.PaymentStatus)" Variant="Variant.Outlined" /></CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Sortable="false" CellClass="text-right">
+                    <CellTemplate>
+                        @if (context.Item.Outstanding > 0)
+                        {
+                            <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Success" StartIcon="@Icons.Material.Rounded.Payments"
+                                       OnClick="@(() => RegisterPaymentAsync(context.Item))">@L["Receivables.Settle"]</MudButton>
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+            <NoRecordsContent>
+                <EmptyState Icon="@Icons.Material.Rounded.TaskAlt" Title="@L["Receivables.None"]" Class="ad-empty--compact" />
+            </NoRecordsContent>
+        </MudDataGrid>
+        @if (_data is { Page.TotalPages: > 1 })
+        {
+            <div class="ad-pager">
+                <MudPagination Count="_data.Page.TotalPages" Selected="_filter.Page" SelectedChanged="@(p => SetAsync(() => _filter.Page = p, resetPage: false))" Color="Color.Primary" />
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "filtro")] public string? InitialFilter { get; set; }
+
+    private readonly ReceivableQuery _filter = new() { PageSize = 25 };
+    private ReceivablesDto? _data;
+    private bool _loading;
+
+    protected override Task OnInitializedAsync()
+    {
+        if (Enum.TryParse<ReceivableFilter>(InitialFilter, ignoreCase: true, out var filter))
+        {
+            _filter.Filter = filter;
+        }
+
+        return LoadAsync();
+    }
+
+    private Task SetAsync(Action change, bool resetPage = true)
+    {
+        change();
+        if (resetPage)
+        {
+            _filter.Page = 1;
+        }
+
+        return LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _data = await Ui.LoadAsync(() => Orders.GetReceivablesAsync(_filter)) ?? _data;
+        _loading = false;
+    }
+
+    private async Task RegisterPaymentAsync(ReceivableDto receivable)
+    {
+        var parameters = new DialogParameters<RegisterPaymentDialog>
+        {
+            { x => x.OrderId, receivable.OrderId },
+            { x => x.OrderNumber, receivable.Number },
+            { x => x.Outstanding, receivable.Outstanding }
+        };
+
+        var dialog = await Dialogs.ShowAsync<RegisterPaymentDialog>(L["Payments.Register"], parameters, DialogServiceExtensions.Form(MaxWidth.Small));
+        if (await dialog.Result is { Canceled: false })
+        {
+            await LoadAsync();
+        }
+    }
+}

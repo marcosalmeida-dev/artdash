@@ -1,0 +1,59 @@
+@page "/motorista"
+@attribute [Authorize(Roles = AppRoles.Driver)]
+@inject DriverApi Driver
+@inject StoreState Store
+@inject AuthSession Session
+@inject UiActions Ui
+
+<div class="ad-page ad-page--narrow">
+    <PageHeader Title="@L["Driver.Title"]" Subtitle="@L["Dashboard.Greeting", FirstName]" Icon="@Icons.Material.Rounded.LocalShipping">
+        <MudIconButton Icon="@Icons.Material.Rounded.Refresh" OnClick="LoadAsync" aria-label="@L["Common.Refresh"]" Disabled="_loading" />
+    </PageHeader>
+
+    @if (_runs is null)
+    {
+        <LoadingScreen />
+    }
+    else if (_runs.Count == 0)
+    {
+        <EmptyState Icon="@Icons.Material.Rounded.Weekend" Title="@L["Driver.NoRuns"]" Text="@L["Driver.NoRunsHint"]" />
+    }
+    else
+    {
+        <div class="ad-list">
+            @foreach (var run in _runs)
+            {
+                <a class="ad-list-card ad-list-card--big" href="@($"/motorista/entregas/{run.Id}")">
+                    <span class="ad-list-card__icon ad-tone--@StatusStyles.For(run.Status).ToString().ToLowerInvariant()">
+                        <MudIcon Icon="@StatusStyles.Icon(run.VehicleType)" />
+                    </span>
+                    <span class="ad-list-card__body">
+                        <span class="ad-list-card__title">@run.Number · @run.VehiclePlate</span>
+                        <span class="ad-list-card__meta">@Fmt.DateAndTime(Store.ToLocal(run.ScheduledFor))</span>
+                        <span class="ad-list-card__chips">
+                            <StatusChip Text="@L.Enum(run.Status)" Color="@StatusStyles.For(run.Status)" />
+                            <StatusChip Text="@L["Deliveries.StopsProgress", run.StopsDelivered, run.StopsTotal]" Icon="@Icons.Material.Rounded.PinDrop" />
+                        </span>
+                    </span>
+                    <span class="ad-list-card__side"><MudIcon Icon="@Icons.Material.Rounded.ChevronRight" /></span>
+                </a>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private IReadOnlyList<DeliveryListItemDto>? _runs;
+    private bool _loading;
+
+    private string FirstName => Session.Principal.DisplayName().Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? string.Empty;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _runs = await Ui.LoadAsync(() => Driver.GetDeliveriesAsync()) ?? _runs ?? [];
+        _loading = false;
+    }
+}

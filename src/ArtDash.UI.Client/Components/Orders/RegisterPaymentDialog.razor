@@ -1,0 +1,76 @@
+@inject OrdersApi Orders
+@inject UiActions Ui
+@inject StoreState Store
+
+@* Records money received outside the gateway: cash or card machine at the door, transfer, invoice settlement. *@
+<MudDialog Class="ad-dialog">
+    <DialogContent>
+        <p class="ad-muted mb-3">@L["Payments.RegisterFor", OrderNumber, Fmt.Money(Outstanding)]</p>
+        <MudGrid Spacing="2">
+            <MudItem xs="12" sm="6">
+                <MudSelect T="PaymentMethod" @bind-Value="_request.Method" Label="@L["Payments.Method"]"
+                           Variant="Variant.Outlined" Margin="Margin.Dense" ToStringFunc="@(m => L.Enum(m))">
+                    @foreach (var method in Enum.GetValues<PaymentMethod>())
+                    {
+                        <MudSelectItem T="PaymentMethod" Value="@method">@L.Enum(method)</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudNumericField T="decimal" @bind-Value="_request.Amount" Label="@L["Payments.Amount"]"
+                                 Variant="Variant.Outlined" Margin="Margin.Dense" Min="0.01m" Max="@Outstanding"
+                                 Format="N2" Culture="@Fmt.Culture" Adornment="Adornment.Start" AdornmentText="R$" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudDatePicker @bind-Date="_paidAt" Label="@L["Payments.PaidAt"]" Variant="Variant.Outlined"
+                               Margin="Margin.Dense" MaxDate="@Store.Today" Culture="@Fmt.Culture" DateFormat="dd/MM/yyyy" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField T="string" @bind-Value="_request.Reference" Label="@L["Payments.Reference"]"
+                              Variant="Variant.Outlined" Margin="Margin.Dense" MaxLength="200" />
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="@(() => MudDialog!.Cancel())">@L["Common.Cancel"]</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Success" DropShadow="false" Disabled="@(_saving || _request.Amount <= 0)"
+                   OnClick="SaveAsync" StartIcon="@Icons.Material.Rounded.Payments">@L["Payments.Register"]</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance? MudDialog { get; set; }
+
+    [Parameter] public Guid OrderId { get; set; }
+    [Parameter] public string OrderNumber { get; set; } = string.Empty;
+    [Parameter] public decimal Outstanding { get; set; }
+    [Parameter] public PaymentMethod? SuggestedMethod { get; set; }
+
+    private readonly RegisterPaymentRequest _request = new();
+    private DateTime? _paidAt;
+    private bool _saving;
+
+    protected override void OnInitialized()
+    {
+        _request.Amount = Outstanding;
+        _request.Method = SuggestedMethod ?? PaymentMethod.Pix;
+        _paidAt = Store.Today;
+    }
+
+    private async Task SaveAsync()
+    {
+        _saving = true;
+
+        // Wall-clock time of the store (Unspecified kind): the API converts it with the store's time zone.
+        _request.PaidAt = _paidAt is { } date
+            ? DateTime.SpecifyKind(date.Date == Store.Today ? Store.Now : date.Date.AddHours(12), DateTimeKind.Unspecified)
+            : null;
+
+        if (await Ui.RunAsync(() => Orders.RegisterPaymentAsync(OrderId, _request), L["Payments.Registered"]))
+        {
+            MudDialog?.Close(DialogResult.Ok(true));
+        }
+
+        _saving = false;
+    }
+}

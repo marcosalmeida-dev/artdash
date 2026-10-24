@@ -1,0 +1,200 @@
+@page "/admin/produtos"
+@attribute [Authorize(Roles = AppRoles.Staff)]
+@inject CatalogApi Catalog
+@inject IDialogService Dialogs
+@inject UiActions Ui
+
+<div class="ad-page">
+    <PageHeader Title="@L["Products.Title"]" Subtitle="@L["Products.Subtitle"]" Icon="@Icons.Material.Rounded.Inventory2">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" DropShadow="false" StartIcon="@Icons.Material.Rounded.Add"
+                   Disabled="@(_categories.Count == 0)" OnClick="@(() => EditAsync(null))">@L["Products.New"]</MudButton>
+    </PageHeader>
+
+    @if (_categoriesLoaded && _categories.Count == 0)
+    {
+        <MudAlert Severity="Severity.Info" Class="mb-4">
+            @L["Products.NeedCategory"]
+            <a class="ad-link" href="/admin/categorias">@L["Products.GoToCategories"]</a>
+        </MudAlert>
+    }
+
+    <section class="ad-card ad-filters">
+        <MudGrid Spacing="2">
+            <MudItem xs="12" md="6">
+                <MudTextField T="string" @bind-Value="_filter.Search" @bind-Value:after="SearchAsync" Label="@L["Products.Search"]"
+                              Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Rounded.Search" Immediate="true" DebounceInterval="350" Clearable="true" />
+            </MudItem>
+            <MudItem xs="6" md="3">
+                <MudSelect T="Guid?" Value="_filter.CategoryId" ValueChanged="@(v => SetAsync(() => _filter.CategoryId = v))"
+                           Label="@L["Products.Category"]" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true"
+                           ToStringFunc="CategoryName">
+                    @foreach (var category in _categories)
+                    {
+                        <MudSelectItem T="Guid?" Value="@((Guid?)category.Id)">@category.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="6" md="3">
+                <MudSelect T="bool?" Value="_filter.IsActive" ValueChanged="@(v => SetAsync(() => _filter.IsActive = v))"
+                           Label="@L["Common.Status"]" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true"
+                           ToStringFunc="ActiveLabel">
+                    <MudSelectItem T="bool?" Value="@((bool?)true)">@L["Common.Active"]</MudSelectItem>
+                    <MudSelectItem T="bool?" Value="@((bool?)false)">@L["Common.Inactive"]</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+        </MudGrid>
+    </section>
+
+    <section class="ad-card ad-card--flush">
+        <MudDataGrid T="ProductDto" Items="@(_page?.Items ?? [])" Loading="_loading" Hover="true" Dense="true" Elevation="0" Class="ad-grid">
+            <Columns>
+                <TemplateColumn Title="@L["Products.Product"]" Sortable="false">
+                    <CellTemplate>
+                        <div class="ad-cell-media">
+                            <span class="ad-thumb">
+                                @if (!string.IsNullOrWhiteSpace(context.Item.ImageUrl))
+                                {
+                                    <img src="@context.Item.ImageUrl" alt="" loading="lazy" />
+                                }
+                                else
+                                {
+                                    <MudIcon Icon="@Icons.Material.Rounded.Image" Size="Size.Small" />
+                                }
+                            </span>
+                            <span class="ad-cell-media__text">
+                                <span class="ad-cell-main">@context.Item.Name</span>
+                                <span class="ad-cell-sub">@(string.IsNullOrWhiteSpace(context.Item.Sku) ? L["Products.NoSku"] : context.Item.Sku)</span>
+                            </span>
+                        </div>
+                    </CellTemplate>
+                </TemplateColumn>
+                <PropertyColumn Property="x => x.CategoryName" Title="@L["Products.Category"]" Sortable="false" />
+                <TemplateColumn Title="@L["Products.Price"]" Sortable="false" HeaderClass="text-right" CellClass="text-right">
+                    <CellTemplate>
+                        <strong>@Fmt.Money(context.Item.Price)</strong>
+                        <span class="ad-cell-sub">@L["Products.PerUnit", L.Enum(context.Item.Unit)]</span>
+                        @if (context.Item.CompareAtPrice is { } compareAt)
+                        {
+                            <span class="ad-cell-sub ad-strike">@Fmt.Money(compareAt)</span>
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="@L["Products.Weight"]" Sortable="false" HeaderClass="text-right" CellClass="text-right">
+                    <CellTemplate>@Fmt.Weight(context.Item.WeightKg)</CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="@L["Common.Status"]" Sortable="false">
+                    <CellTemplate>
+                        <div class="ad-chips">
+                            <StatusChip Text="@(context.Item.IsActive ? L["Common.Active"] : L["Common.Inactive"])"
+                                        Color="@(context.Item.IsActive ? Color.Success : Color.Default)" />
+                            @if (context.Item.IsFeatured)
+                            {
+                                <StatusChip Text="@L["Products.Featured"]" Color="Color.Warning" Icon="@Icons.Material.Rounded.Star" />
+                            }
+                        </div>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Sortable="false" HeaderClass="text-right" CellClass="text-right ad-cell-actions">
+                    <CellTemplate>
+                        <MudIconButton Icon="@Icons.Material.Rounded.Edit" Size="Size.Small" aria-label="@L["Common.Edit"]"
+                                       OnClick="@(() => EditAsync(context.Item))" />
+                        <MudIconButton Icon="@Icons.Material.Rounded.Delete" Size="Size.Small" Color="Color.Error" aria-label="@L["Common.Delete"]"
+                                       OnClick="@(() => DeleteAsync(context.Item))" />
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+            <NoRecordsContent>
+                <EmptyState Icon="@Icons.Material.Rounded.Inventory2" Title="@L["Products.None"]" Text="@L["Products.NoneHint"]" Class="ad-empty--compact" />
+            </NoRecordsContent>
+        </MudDataGrid>
+        @if (_page is { TotalPages: > 1 })
+        {
+            <div class="ad-pager">
+                <MudPagination Count="_page.TotalPages" Selected="_filter.Page"
+                               SelectedChanged="@(p => SetAsync(() => _filter.Page = p, resetPage: false))" Color="Color.Primary" />
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    private readonly ProductQuery _filter = new() { PageSize = 25 };
+    private PagedResult<ProductDto>? _page;
+    private IReadOnlyList<CategoryDto> _categories = [];
+    private bool _categoriesLoaded;
+    private bool _loading;
+
+    /// <summary>Opened from the categories page: <c>/admin/produtos?categoria={id}</c>.</summary>
+    [SupplyParameterFromQuery(Name = "categoria")]
+    public Guid? CategoryFromQuery { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _categories = await Ui.LoadAsync(() => Catalog.GetCategoriesAsync()) ?? [];
+        _categoriesLoaded = true;
+        _filter.CategoryId = CategoryFromQuery;
+        await LoadAsync();
+    }
+
+    private string CategoryName(Guid? id) => _categories.FirstOrDefault(c => c.Id == id)?.Name ?? string.Empty;
+
+    private string ActiveLabel(bool? active) => active switch
+    {
+        true => L["Common.Active"],
+        false => L["Common.Inactive"],
+        _ => string.Empty
+    };
+
+    private Task SearchAsync()
+    {
+        _filter.Page = 1;
+        return LoadAsync();
+    }
+
+    private Task SetAsync(Action change, bool resetPage = true)
+    {
+        change();
+        if (resetPage)
+        {
+            _filter.Page = 1;
+        }
+
+        return LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _page = await Ui.LoadAsync(() => Catalog.SearchProductsAsync(_filter)) ?? PagedResult<ProductDto>.Empty();
+        _loading = false;
+    }
+
+    private async Task EditAsync(ProductDto? product)
+    {
+        var parameters = new DialogParameters<ProductDialog>
+        {
+            { x => x.Product, product },
+            { x => x.Categories, _categories }
+        };
+
+        var title = product is null ? L["Products.New"] : L["Products.Edit"];
+        var dialog = await Dialogs.ShowAsync<ProductDialog>(title, parameters, DialogServiceExtensions.Form(MaxWidth.Medium));
+        if (await dialog.Result is { Canceled: false })
+        {
+            await LoadAsync();
+        }
+    }
+
+    private async Task DeleteAsync(ProductDto product)
+    {
+        var confirmed = await Dialogs.ConfirmAsync(
+            L["Products.DeleteTitle"], L["Products.DeleteConfirm", product.Name], L["Common.Delete"], L["Common.Cancel"],
+            Color.Error, Icons.Material.Rounded.DeleteForever);
+
+        if (confirmed && await Ui.RunAsync(() => Catalog.DeleteProductAsync(product.Id), L["Products.Deleted"]))
+        {
+            await LoadAsync();
+        }
+    }
+}

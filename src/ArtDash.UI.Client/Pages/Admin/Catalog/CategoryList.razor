@@ -1,0 +1,99 @@
+@page "/admin/categorias"
+@attribute [Authorize(Roles = AppRoles.Staff)]
+@inject CatalogApi Catalog
+@inject IDialogService Dialogs
+@inject UiActions Ui
+
+@* Product groups: the sections of the storefront, in SortOrder. *@
+<div class="ad-page ad-page--narrow">
+    <PageHeader Title="@L["Categories.Title"]" Subtitle="@L["Categories.Subtitle"]" Icon="@Icons.Material.Rounded.Category">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" DropShadow="false" StartIcon="@Icons.Material.Rounded.Add"
+                   OnClick="@(() => EditAsync(null))">@L["Categories.New"]</MudButton>
+    </PageHeader>
+
+    @if (_categories is null)
+    {
+        <LoadingScreen />
+    }
+    else if (_categories.Count == 0)
+    {
+        <EmptyState Icon="@Icons.Material.Rounded.Category" Title="@L["Categories.None"]" Text="@L["Categories.NoneHint"]">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" DropShadow="false" StartIcon="@Icons.Material.Rounded.Add"
+                       OnClick="@(() => EditAsync(null))">@L["Categories.New"]</MudButton>
+        </EmptyState>
+    }
+    else
+    {
+        <section class="ad-card ad-card--flush">
+            <div class="ad-rows">
+                @foreach (var category in _categories)
+                {
+                    <div class="ad-row">
+                        <span class="ad-row__icon"><MudIcon Icon="@Icons.Material.Rounded.Label" /></span>
+                        <span class="ad-row__main">
+                            <strong>@category.Name</strong>
+                            @if (!string.IsNullOrWhiteSpace(category.Description))
+                            {
+                                <span class="ad-muted ad-small">@category.Description</span>
+                            }
+                            <span class="ad-chips">
+                                <StatusChip Text="@L["Categories.ProductCount", category.ProductCount]" Icon="@Icons.Material.Rounded.Inventory2" />
+                                @if (!category.IsActive)
+                                {
+                                    <StatusChip Text="@L["Categories.Hidden"]" Icon="@Icons.Material.Rounded.VisibilityOff" />
+                                }
+                            </span>
+                        </span>
+                        <span class="ad-row__side">
+                            <a class="ad-link ad-small" href="@($"/admin/produtos?categoria={category.Id}")">@L["Categories.SeeProducts"]</a>
+                            <MudIconButton Icon="@Icons.Material.Rounded.Edit" Size="Size.Small" aria-label="@L["Common.Edit"]"
+                                           OnClick="@(() => EditAsync(category))" />
+                            <MudIconButton Icon="@Icons.Material.Rounded.Delete" Size="Size.Small" Color="Color.Error" aria-label="@L["Common.Delete"]"
+                                           Disabled="@(category.ProductCount > 0)" OnClick="@(() => DeleteAsync(category))" />
+                        </span>
+                    </div>
+                }
+            </div>
+        </section>
+        <p class="ad-muted ad-small mt-3">@L["Categories.DeleteHint"]</p>
+    }
+</div>
+
+@code {
+    private IReadOnlyList<CategoryDto>? _categories;
+
+    private int NextSortOrder => (_categories is { Count: > 0 } list ? list.Max(c => c.SortOrder) : 0) + 1;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync() =>
+        _categories = await Ui.LoadAsync(() => Catalog.GetCategoriesAsync()) ?? _categories ?? [];
+
+    private async Task EditAsync(CategoryDto? category)
+    {
+        var parameters = new DialogParameters<CategoryDialog>
+        {
+            { x => x.Category, category },
+            { x => x.NextSortOrder, NextSortOrder }
+        };
+
+        var title = category is null ? L["Categories.New"] : L["Categories.Edit"];
+        var dialog = await Dialogs.ShowAsync<CategoryDialog>(title, parameters, DialogServiceExtensions.Form());
+        if (await dialog.Result is { Canceled: false })
+        {
+            await LoadAsync();
+        }
+    }
+
+    private async Task DeleteAsync(CategoryDto category)
+    {
+        var confirmed = await Dialogs.ConfirmAsync(
+            L["Categories.DeleteTitle"], L["Categories.DeleteConfirm", category.Name], L["Common.Delete"], L["Common.Cancel"],
+            Color.Error, Icons.Material.Rounded.DeleteForever);
+
+        if (confirmed && await Ui.RunAsync(() => Catalog.DeleteCategoryAsync(category.Id), L["Categories.Deleted"]))
+        {
+            await LoadAsync();
+        }
+    }
+}

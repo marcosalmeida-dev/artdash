@@ -1,0 +1,36 @@
+@* Yes/no confirmation. Closes with Ok(true) on confirm, Cancel() otherwise (see DialogServiceExtensions.ConfirmAsync). *@
+<MudDialog Class="ad-dialog">
+    <DialogContent>
+        <div class="ad-confirm">
+            <span class="ad-confirm__icon ad-tone--@Color.ToString().ToLowerInvariant()">
+                <MudIcon Icon="@Icon" />
+            </span>
+            <p class="ad-confirm__message">@Message</p>
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="Cancel" Disabled="_busy">@CancelText</MudButton>
+        <MudButton Variant="Variant.Filled" Color="@Color" DropShadow="false" OnClick="Confirm" Disabled="_busy">@ConfirmText</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance? MudDialog { get; set; }
+
+    [Parameter] public string Message { get; set; } = string.Empty;
+    [Parameter] public string ConfirmText { get; set; } = "OK";
+    [Parameter] public string CancelText { get; set; } = "Cancelar";
+    [Parameter] public string Icon { get; set; } = Icons.Material.Rounded.HelpOutline;
+    [Parameter] public Color Color { get; set; } = Color.Primary;
+
+    // Set on confirm so a slow caller cannot be double-submitted from a second click.
+    private bool _busy;
+
+    private void Confirm()
+    {
+        _busy = true;
+        MudDialog?.Close(DialogResult.Ok(true));
+    }
+
+    private void Cancel() => MudDialog?.Cancel();
+}

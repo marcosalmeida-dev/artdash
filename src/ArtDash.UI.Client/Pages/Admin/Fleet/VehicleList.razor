@@ -1,0 +1,107 @@
+@page "/admin/veiculos"
+@attribute [Authorize(Roles = AppRoles.Staff)]
+@inject FleetApi Fleet
+@inject IDialogService Dialogs
+@inject UiActions Ui
+
+<div class="ad-page ad-page--narrow">
+    <PageHeader Title="@L["Vehicles.Title"]" Subtitle="@L["Vehicles.Subtitle"]" Icon="@Icons.Material.Rounded.DirectionsCar">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" DropShadow="false" StartIcon="@Icons.Material.Rounded.Add"
+                   OnClick="@(() => EditAsync(null))">@L["Vehicles.New"]</MudButton>
+    </PageHeader>
+
+    @if (_vehicles is null)
+    {
+        <LoadingScreen />
+    }
+    else if (_vehicles.Count == 0)
+    {
+        <EmptyState Icon="@Icons.Material.Rounded.DirectionsCar" Title="@L["Vehicles.None"]" Text="@L["Vehicles.NoneHint"]">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" DropShadow="false" StartIcon="@Icons.Material.Rounded.Add"
+                       OnClick="@(() => EditAsync(null))">@L["Vehicles.New"]</MudButton>
+        </EmptyState>
+    }
+    else
+    {
+        <section class="ad-card ad-card--flush">
+            <div class="ad-rows">
+                @foreach (var vehicle in _vehicles)
+                {
+                    <div class="ad-row @(vehicle.IsActive ? null : "ad-row--muted")">
+                        <span class="ad-row__icon"><MudIcon Icon="@StatusStyles.Icon(vehicle.Type)" /></span>
+                        <span class="ad-row__main">
+                            <strong class="ad-plate">@FormatPlate(vehicle.Plate)</strong>
+                            <span class="ad-muted ad-small">@Summary(vehicle)</span>
+                            @if (!string.IsNullOrWhiteSpace(vehicle.Notes))
+                            {
+                                <span class="ad-muted ad-small">@vehicle.Notes</span>
+                            }
+                        </span>
+                        <span class="ad-row__side">
+                            @if (!vehicle.IsActive)
+                            {
+                                <StatusChip Text="@L["Common.Inactive"]" />
+                            }
+                            <MudIconButton Icon="@Icons.Material.Rounded.Edit" Size="Size.Small" aria-label="@L["Common.Edit"]"
+                                           OnClick="@(() => EditAsync(vehicle))" />
+                            <MudIconButton Icon="@Icons.Material.Rounded.Delete" Size="Size.Small" Color="Color.Error" aria-label="@L["Common.Delete"]"
+                                           OnClick="@(() => DeleteAsync(vehicle))" />
+                        </span>
+                    </div>
+                }
+            </div>
+        </section>
+    }
+</div>
+
+@code {
+    private IReadOnlyList<VehicleDto>? _vehicles;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync() =>
+        _vehicles = await Ui.LoadAsync(() => Fleet.GetVehiclesAsync()) ?? _vehicles ?? [];
+
+    /// <summary>"Van · Fiat Ducato · até 1.500 kg".</summary>
+    private string Summary(VehicleDto vehicle)
+    {
+        var parts = new List<string> { L.Enum(vehicle.Type) };
+        if (!string.IsNullOrWhiteSpace(vehicle.Model))
+        {
+            parts.Add(vehicle.Model);
+        }
+
+        if (vehicle.CapacityKg is { } capacity)
+        {
+            parts.Add(L["Vehicles.CapacityShort", Fmt.Number(capacity, 0)]);
+        }
+
+        return string.Join(" · ", parts);
+    }
+
+    /// <summary>"ABC1D23" is shown as "ABC-1D23".</summary>
+    private static string FormatPlate(string plate) => plate.Length == 7 ? $"{plate[..3]}-{plate[3..]}" : plate;
+
+    private async Task EditAsync(VehicleDto? vehicle)
+    {
+        var parameters = new DialogParameters<VehicleDialog> { { x => x.Vehicle, vehicle } };
+        var title = vehicle is null ? L["Vehicles.New"] : L["Vehicles.Edit"];
+        var dialog = await Dialogs.ShowAsync<VehicleDialog>(title, parameters, DialogServiceExtensions.Form());
+        if (await dialog.Result is { Canceled: false })
+        {
+            await LoadAsync();
+        }
+    }
+
+    private async Task DeleteAsync(VehicleDto vehicle)
+    {
+        var confirmed = await Dialogs.ConfirmAsync(
+            L["Vehicles.DeleteTitle"], L["Vehicles.DeleteConfirm", FormatPlate(vehicle.Plate)], L["Common.Delete"], L["Common.Cancel"],
+            Color.Error, Icons.Material.Rounded.DeleteForever);
+
+        if (confirmed && await Ui.RunAsync(() => Fleet.DeleteVehicleAsync(vehicle.Id), L["Vehicles.Deleted"]))
+        {
+            await LoadAsync();
+        }
+    }
+}

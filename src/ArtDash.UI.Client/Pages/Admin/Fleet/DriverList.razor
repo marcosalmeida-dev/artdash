@@ -1,0 +1,103 @@
+@page "/admin/motoristas"
+@attribute [Authorize(Roles = AppRoles.Staff)]
+@inject FleetApi Fleet
+@inject StoreState Store
+@inject AuthSession Session
+@inject UiActions Ui
+
+@* Drivers are users with the Driver role: created and edited in Users (admins), listed here for everyone on staff. *@
+<div class="ad-page ad-page--narrow">
+    <PageHeader Title="@L["Drivers.Title"]" Subtitle="@L["Drivers.Subtitle"]" Icon="@Icons.Material.Rounded.Badge">
+        @if (Session.Principal.IsAdmin())
+        {
+            <MudButton Href="/admin/usuarios?perfil=Driver" Variant="Variant.Outlined" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Rounded.ManageAccounts">@L["Drivers.Manage"]</MudButton>
+        }
+    </PageHeader>
+
+    @if (_drivers is null)
+    {
+        <LoadingScreen />
+    }
+    else if (_drivers.Count == 0)
+    {
+        <EmptyState Icon="@Icons.Material.Rounded.Badge" Title="@L["Drivers.None"]" Text="@L["Drivers.NoneHint"]" />
+    }
+    else
+    {
+        <section class="ad-card ad-card--flush">
+            <div class="ad-rows">
+                @foreach (var driver in _drivers)
+                {
+                    var license = LicenseState(driver.LicenseExpiresOn);
+                    <div class="ad-row @(driver.IsActive ? null : "ad-row--muted")">
+                        <span class="ad-row__icon"><MudIcon Icon="@Icons.Material.Rounded.Person" /></span>
+                        <span class="ad-row__main">
+                            <strong>@driver.Name</strong>
+                            <span class="ad-muted ad-small">
+                                @(string.IsNullOrWhiteSpace(driver.Phone) ? L["Drivers.NoPhone"] : Fmt.Phone(driver.Phone))
+                            </span>
+                            <span class="ad-small">
+                                @if (string.IsNullOrWhiteSpace(driver.LicenseNumber))
+                                {
+                                    <span class="ad-text-warning">@L["Drivers.NoLicense"]</span>
+                                }
+                                else
+                                {
+                                    <span class="ad-muted">@L["Drivers.License", driver.LicenseNumber, driver.LicenseCategory ?? "—"]</span>
+                                    @if (driver.LicenseExpiresOn is { } expires)
+                                    {
+                                        <span class="@(license == Expiry.Ok ? "ad-muted" : "ad-text-warning")"> · @L[ExpiryKey(license), Fmt.Date(expires)]</span>
+                                    }
+                                }
+                            </span>
+                        </span>
+                        <span class="ad-row__side">
+                            @if (driver.IsOnDelivery)
+                            {
+                                <StatusChip Text="@L["Drivers.OnDelivery"]" Color="Color.Primary" Icon="@Icons.Material.Rounded.LocalShipping" />
+                            }
+                            @if (!driver.IsActive)
+                            {
+                                <StatusChip Text="@L["Common.Inactive"]" />
+                            }
+                            @if (!string.IsNullOrWhiteSpace(driver.Phone))
+                            {
+                                <MudIconButton Href="@Fmt.TelLink(driver.Phone)" Icon="@Icons.Material.Rounded.Call" Size="Size.Small"
+                                               aria-label="@L["Deliveries.CallDriver"]" />
+                            }
+                        </span>
+                    </div>
+                }
+            </div>
+        </section>
+    }
+</div>
+
+@code {
+    private enum Expiry
+    {
+        Ok,
+        Soon,
+        Expired
+    }
+
+    private IReadOnlyList<DriverDto>? _drivers;
+
+    protected override async Task OnInitializedAsync() =>
+        _drivers = await Ui.LoadAsync(() => Fleet.GetDriversAsync()) ?? [];
+
+    /// <summary>Warn 30 days before the CNH expires.</summary>
+    private Expiry LicenseState(DateTime? expiresOn) =>
+        expiresOn is not { } date ? Expiry.Ok
+        : date.Date < Store.Today ? Expiry.Expired
+        : date.Date <= Store.Today.AddDays(30) ? Expiry.Soon
+        : Expiry.Ok;
+
+    private static string ExpiryKey(Expiry state) => state switch
+    {
+        Expiry.Expired => "Drivers.LicenseExpired",
+        Expiry.Soon => "Drivers.LicenseExpiresSoon",
+        _ => "Drivers.LicenseExpires"
+    };
+}
